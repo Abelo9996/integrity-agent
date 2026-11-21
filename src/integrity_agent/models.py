@@ -131,3 +131,13 @@ class Coverage(Model):
     source: str
     status: Literal["ok", "skipped", "failed"]
     detail: str
+
+
+class DetectorCoverage(Model):
+    work_id: str
+    detector: Literal["D1", "D2", "D3", "D4", "D5", "D6"]
+    check: str
+    status: Literal["ran", "not_assessed", "failed"]
+    input_count: int = Field(ge=0)
+    artifact_ids: list[str] = Field(default_factory=list)
+    detail: str

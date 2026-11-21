@@ -55,3 +55,26 @@ private author reports are unchanged and were not rerun as part of this verifier
 4. Add a reproducibility manifest recording code revision, dependency versions and public
    detector settings, without secrets. Evaluate candidate retrieval before larger author runs;
    the current exhaustive pair search is quadratic.
+
+## Schema 1.2: execution coverage and presentation groups
+
+`detector_coverage` records work, detector, subcheck, artifact references, input count,
+`ran`/`not_assessed`/`failed`, and a scope/reason. It is populated from runtime operations,
+not the agent plan or the existence of an artifact. Subchecks have separate prerequisites;
+for example, repeated means can be assessed while GRIM/GRIMMER remain ineligible.
+`works_attempted` counts selected works. `works_analyzed` now counts works with at least
+one recorded completed check, not comprehensive examination. Acquisition coverage remains
+separate. A failure and successful checks can coexist for a paper. Input counts are specific
+to the check (panels, pairs, rows or variables), not a comparable quality score.
+
+`review_groups` is computed only after structural and file verification. Equivalent image
+results require the same work-qualified source hashes, parameters, measurements (excluding
+panel identifiers), overlay hashes, kind/tier and limitations. Different regions, encodings
+or work associations remain separate. Every verified claim and raw finding remains in JSON;
+HTML shows one representative overlay and all member finding IDs/source links. Grouping
+never introduces an anomaly claim. Conflicting duplicate IDs are retained for rejection;
+the pipeline coalesces only identical full detector outputs, never a last-wins ID mapping.
+
+A `run-manifest.json` records Python/dependency versions, detector source hashes, input
+hashes and image profile without environment variables or credentials. These hashes support
+reproducibility; they are not signatures, semantic proof, or a calibrated detector evaluation.

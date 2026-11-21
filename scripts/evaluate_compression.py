@@ -8,7 +8,9 @@ import importlib.util
 import json
 import sys
 import time
+from functools import partial
 from pathlib import Path
+from types import SimpleNamespace
 
 from integrity_agent.detectors import images
 from integrity_agent.evaluation import panel
@@ -81,11 +83,23 @@ def run(detector, *, development=False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--development", action="store_true")
+    parser.add_argument(
+        "--standard", action="store_true", help="Evaluate the unchanged default profile"
+    )
     parser.add_argument("--baseline-dir", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     detector = load_baseline(args.baseline_dir) if args.baseline_dir else images
+    if not args.baseline_dir and not args.standard:
+        detector = SimpleNamespace(
+            __file__=images.__file__,
+            compare=partial(images.compare, compression=True),
+            copy_move=partial(images.copy_move, compression=True),
+        )
     result = run(detector, development=args.development)
+    result["profile"] = (
+        "standard" if args.standard or args.baseline_dir else "experimental-compression"
+    )
     directory = Path(detector.__file__).parent
     result["detector_hashes"] = {
         p.name: hashlib.sha256(p.read_bytes()).hexdigest()

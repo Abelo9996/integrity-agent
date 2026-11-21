@@ -272,7 +272,7 @@ def test_small_region_evidence_survives_pipeline_and_verifier(tmp_path):
             ".png",
         )
     output = tmp_path / "report"
-    result = analyze(collector, author, works, output, network=False)
+    result = analyze(collector, author, works, output, network=False, experimental_compression=True)
     findings = [
         f
         for f in result["findings"]
@@ -300,8 +300,9 @@ def test_limited_run_displays_scope_before_paper_results(tmp_path):
     )
     rendered = (tmp_path / "report.html").read_text()
     assert rendered.index(note) < rendered.index("<section>")
-    assert "1 works analyzed" in rendered
-    assert report["summary"]["works_analyzed"] == 1
+    assert "1 works attempted" in rendered
+    assert report["summary"]["works_analyzed"] == 0
+    assert report["summary"]["works_attempted"] == 1
     assert report["summary"]["author_profile_works_count"] == 100
 
 

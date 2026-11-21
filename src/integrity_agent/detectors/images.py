@@ -15,10 +15,10 @@ from PIL import Image
 
 from ..models import Finding, finding
 from .image_regions import (
-    REGION_PARAMETERS,
     TEXTURE_PARAMETERS,
     luminance,
     pixel_match,
+    region_parameters,
     regions,
     supported_features,
 )
@@ -84,12 +84,30 @@ def coordinates(panel, shape, points):
 
 
 def pixel_finding(
-    a, b, *, same_image=False, raw_a=None, raw_b=None, proposals_a=None, proposals_b=None
+    a,
+    b,
+    *,
+    same_image=False,
+    raw_a=None,
+    raw_b=None,
+    proposals_a=None,
+    proposals_b=None,
+    compression=False,
 ):
-    aa = luminance(a.pixels, REGION_PARAMETERS["max_image_side"]) if raw_a is None else raw_a
-    bb = luminance(b.pixels, REGION_PARAMETERS["max_image_side"]) if raw_b is None else raw_b
+    params = region_parameters(compression)
+    aa = luminance(a.pixels, params["max_image_side"]) if raw_a is None else raw_a
+    bb = (
+        luminance(b.pixels, region_parameters(compression)["max_image_side"])
+        if raw_b is None
+        else raw_b
+    )
     result = pixel_match(
-        aa, bb, same_image=same_image, proposals_a=proposals_a, proposals_b=proposals_b
+        aa,
+        bb,
+        same_image=same_image,
+        proposals_a=proposals_a,
+        proposals_b=proposals_b,
+        compression=compression,
     )
     if result is None:
         return None
@@ -101,8 +119,10 @@ def pixel_finding(
         [a.artifact_id] if same_image else [a.artifact_id, b.artifact_id],
         f"Small regions in {'panel ' + a.id if same_image else 'panels ' + a.id + ' and ' + b.id} have correlated pixel structure and spatial detail; consistent with duplication and warrants review.",
         parameters={
-            "method": "component-pixel-corroboration-v2",
-            **REGION_PARAMETERS,
+            "method": "component-pixel-corroboration-v2"
+            if compression
+            else "component-pixel-corroboration-v1",
+            **params,
             "texture_support": TEXTURE_PARAMETERS,
         },
         measurements={
@@ -123,7 +143,11 @@ def pixel_finding(
         },
         limitations=[
             "This is a bounded search for dark components on light backgrounds, not a general blot classifier.",
-            "Component search preserves native pixels up to a 2400-pixel side and searches translation, horizontal reflection, discrete scales and linear brightness; arbitrary rotation, blending and compression can hide small clones.",
+            (
+                "Experimental component search preserves native pixels up to a 2400-pixel side and searches discrete scales; it trades sensitivity for fewer smooth-envelope matches."
+                if compression
+                else "Component search uses a 900-pixel side and translation, horizontal reflection and linear brightness; resizing and compression can hide small clones."
+            ),
             "Fine residual correlation does not establish intent or biological identity; repeated controls and figure assembly require expert review.",
             "Heuristic texture filtering can exclude legitimate smooth experimental images; absent findings do not establish a clean figure.",
         ],
@@ -220,6 +244,7 @@ def compare(
     proposals_b=None,
     pixel_raw_a=None,
     pixel_raw_b=None,
+    compression=False,
 ) -> Match | None:
     raw_a = luminance(a.pixels) if raw_a is None else raw_a
     raw_b = luminance(b.pixels) if raw_b is None else raw_b
@@ -283,6 +308,7 @@ def compare(
         return pixel_finding(
             a,
             b,
+            compression=compression,
             raw_a=pixel_raw_a,
             raw_b=pixel_raw_b,
             proposals_a=proposals_a,
@@ -340,7 +366,14 @@ def compare(
 
 
 def copy_move(
-    panel: Panel, *, min_matches=10, cached=None, raw=None, proposals=None, pixel_raw=None
+    panel: Panel,
+    *,
+    min_matches=10,
+    cached=None,
+    raw=None,
+    proposals=None,
+    pixel_raw=None,
+    compression=False,
 ) -> Match | None:
     raw = luminance(panel.pixels) if raw is None else raw
 
@@ -349,6 +382,7 @@ def copy_move(
             panel,
             panel,
             same_image=True,
+            compression=compression,
             raw_a=pixel_raw,
             raw_b=pixel_raw,
             proposals_a=proposals,
@@ -420,7 +454,7 @@ def copy_move(
     return Match(f, overlay(a, a, src, dst))
 
 
-def detect(panels: list[Panel]) -> list[Match]:
+def detect(panels: list[Panel], *, compression=False) -> list[Match]:
     results = []
     cache = {}
     normalized = {}
@@ -431,7 +465,7 @@ def detect(panels: list[Panel]) -> list[Match]:
     for p in panels:
         a = gray(p.pixels)
         raw[p.id] = luminance(p.pixels)
-        pixel_raw[p.id] = luminance(p.pixels, REGION_PARAMETERS["max_image_side"])
+        pixel_raw[p.id] = luminance(p.pixels, region_parameters(compression)["max_image_side"])
         proposals[p.id] = regions(pixel_raw[p.id])
         cache[p.id] = (hashes(a), *features(a, raw[p.id]))
         normalized[p.id] = a
@@ -442,6 +476,7 @@ def detect(panels: list[Panel]) -> list[Match]:
             raw=raw[p.id],
             proposals=proposals[p.id],
             pixel_raw=pixel_raw[p.id],
+            compression=compression,
         )
         if m:
             results.append(m)
@@ -458,6 +493,7 @@ def detect(panels: list[Panel]) -> list[Match]:
             flipped_features_b=flipped[b.id],
             raw_a=raw[a.id],
             raw_b=raw[b.id],
+            compression=compression,
             pixel_raw_a=pixel_raw[a.id],
             pixel_raw_b=pixel_raw[b.id],
             proposals_a=proposals[a.id],

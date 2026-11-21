@@ -30,6 +30,10 @@ def run(
     max_works: int | None = None,
     with_retraction_watch: bool = True,
     with_field_baseline: bool = True,
+    experimental_compression: bool = typer.Option(
+        False,
+        help="Experimental image search: fewer smooth-shape signals, reduced sensitivity on some figures; see evaluation docs.",
+    ),
 ):
     """Resolve an author, require confirmation, and write private local evidence reports."""
     load_dotenv(dotenv_path=Path(".env"))
@@ -98,7 +102,15 @@ def run(
             collector.attempt(
                 selected[0], "field-baseline", lambda: field_baselines(collector, selected)
             )
-        report = analyze(collector, chosen, selected, output, llm=llm, review_input=review_input)
+        report = analyze(
+            collector,
+            chosen,
+            selected,
+            output,
+            llm=llm,
+            review_input=review_input,
+            experimental_compression=experimental_compression,
+        )
         typer.echo(f"{output / 'report.html'}\n{output / 'report.json'}")
         typer.echo(
             f"Verifier accepted {report['verification']['accepted']} claims; removed {len(report['verification']['rejected'])}."

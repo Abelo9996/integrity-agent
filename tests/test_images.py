@@ -124,8 +124,8 @@ def test_native_compression_localization_and_smooth_negative():
 
     for case in cases(60, "lanes"):
         if case.name in ("native", "jpeg85", "scaled"):
-            match = copy_move(panel(case.target, "native"))
+            match = copy_move(panel(case.target, "native"), compression=True)
             assert localized(match, case)
             assert match.finding.parameters["max_image_side"] == 2400
     independent, _ = figure(60, "lanes", twins=True)
-    assert copy_move(panel(jpeg(independent, 85), "negative")) is None
+    assert copy_move(panel(jpeg(independent, 85), "negative"), compression=True) is None

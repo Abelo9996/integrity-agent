@@ -11,7 +11,9 @@ from pathlib import Path
 from urllib.parse import quote, urlsplit
 
 from .agent import REVIEW_QUESTIONS
+from .assessment import AssessmentLedger, coverage_summary
 from .models import FOOTER, Artifact, Author, Claim, Coverage, Finding, Work
+from .review_groups import review_groups
 
 
 def claims_from_findings(findings: list[Finding]) -> list[Claim]:
@@ -142,6 +144,7 @@ def write_report(
     *,
     claims=None,
     review=None,
+    detector_coverage=None,
 ):
     root.mkdir(parents=True, exist_ok=True)
     accepted, rejected = verify(
@@ -151,6 +154,12 @@ def write_report(
     rejected.extend(file_rejections)
     accepted_ids = {c.finding_id for c in accepted}
     verified = [f for f in findings if f.id in accepted_ids]
+    groups = review_groups(verified, artifacts)
+    detector_coverage = (
+        detector_coverage
+        if detector_coverage is not None
+        else AssessmentLedger(w.id for w in works).finish()
+    )
     strong = {w for f in verified if f.tier == "strong" for w in f.work_ids}
     summary = {
         "papers_with_strong_findings": len(strong),
@@ -165,12 +174,16 @@ def write_report(
             }
         ),
         "papers_indexed": len(works),
-        "works_analyzed": len(works),
+        "works_analyzed": len({c.work_id for c in detector_coverage if c.status == "ran"}),
+        "works_attempted": len(works),
+        "raw_verified_findings": len(verified),
+        "review_groups": len(groups),
+        "detector_checks": coverage_summary(detector_coverage),
         "author_profile_works_count": author.works_count,
         "artifacts_collected": len(artifacts),
     }
     report = {
-        "schema_version": "1.1",
+        "schema_version": "1.2",
         "author": author.model_dump(mode="json"),
         "summary": summary,
         "works": [w.model_dump(mode="json") for w in works],
@@ -178,6 +191,8 @@ def write_report(
         "findings": [f.model_dump(mode="json") for f in verified],
         "claims": [c.model_dump(mode="json") for c in accepted],
         "coverage": [c.model_dump(mode="json") for c in coverage],
+        "detector_coverage": [c.model_dump(mode="json") for c in detector_coverage],
+        "review_groups": groups,
         "verification": {"accepted": len(accepted), "rejected": rejected},
         "review": review or {"questions": list(REVIEW_QUESTIONS.values())},
         "footer": FOOTER,
@@ -188,9 +203,17 @@ def write_report(
     body = [
         f"<h1>Evidence review: {esc(author.name)}</h1>",
         "<p>No overall verdict is provided.</p>",
-        f"<p>{summary['works_analyzed']} works analyzed; {len(artifacts)} artifacts collected; "
+        f"<p>{summary['works_attempted']} works attempted; {len(artifacts)} artifacts collected; "
         f"{len(strong)} papers with strong findings.</p>",
+        f"<p>{len(verified)} verified detector results in {len(groups)} review groups. Grouping changes presentation only; all finding IDs remain in JSON.</p>",
+        "<p>Detector coverage below distinguishes completed checks from missing inputs and failures. A completed check with no finding does not establish a clean paper.</p>",
     ]
+    profile = (review or {}).get("image_profile", "not recorded")
+    body.append(f"<p>Image search profile: {esc(profile)}</p>")
+    if profile == "experimental-compression":
+        body.append(
+            "<aside><strong>Experimental image search.</strong> This profile reduced review signals in constructed negatives but missed more small smooth copies in regression tests. Its sensitivity is not established; see the repository evaluation results.</aside>"
+        )
     scope_notes = [c.detail for c in coverage if c.work_id == author.id and c.status == "skipped"]
     if scope_notes:
         body.append(
@@ -217,12 +240,23 @@ def write_report(
         body.append(
             f"<section><h2>{esc(work.title)}</h2><p>{esc(str(work.year))} · {esc(work.venue)}</p>"
         )
-        fs = [f for f in verified if work.id in f.work_ids]
+        body.append(
+            "<details open><summary>Detector coverage for this paper</summary><table><thead><tr><th>Check</th><th>Status</th><th>Inputs</th><th>Scope / reason</th></tr></thead><tbody>"
+        )
+        for c in detector_coverage:
+            if c.work_id == work.id:
+                body.append(
+                    f"<tr><td>{esc(c.detector)} / {esc(c.check)}</td><td>{esc(c.status)}</td><td>{c.input_count}</td><td>{esc(c.detail)}</td></tr>"
+                )
+        body.append("</tbody></table></details>")
+        work_groups = [g for g in groups if work.id in g["work_ids"]]
+        fs = [f for f in verified if f.id in {g["representative_id"] for g in work_groups}]
         if not fs:
             body.append(
                 "<p>No detector findings in the collected artifacts. This does not establish reliability or completeness.</p>"
             )
         for f in fs:
+            group = next(g for g in work_groups if g["representative_id"] == f.id)
             body.append(
                 f"<article><h3>{esc(f.detector)} · {esc(f.tier)}</h3><p>{esc(f.statement)}</p><code>{esc(f.id)}</code>"
             )
@@ -239,8 +273,14 @@ def write_report(
                 body.append(
                     f'<img src="{esc(quote(evidence, safe="/"), quote=True)}" alt="Detector matching evidence">'
                 )
+            if len(group["finding_ids"]) > 1:
+                body.append(
+                    "<details><summary>Equivalent evidence: all finding IDs</summary><ul>"
+                    + "".join(f"<li>{esc(fid)}</li>" for fid in group["finding_ids"])
+                    + "</ul></details>"
+                )
             for a in artifacts:
-                if a.artifact_id in f.artifact_ids:
+                if a.artifact_id in group["artifact_ids"]:
                     url = safe_source(a.url)
                     label = esc(a.artifact_id)
                     body.append(
@@ -264,7 +304,7 @@ def write_report(
     )
     body.append(f"<footer>{FOOTER}</footer>")
     document = (
-        '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Evidence review</title><style>body{font:16px/1.55 system-ui,sans-serif;max-width:1000px;margin:40px auto;padding:0 24px;color:#15232b;background:#fafbfc}article{border:1px solid #bac8d0;padding:20px;margin:16px 0;background:white}img{max-width:100%;height:auto}pre{white-space:pre-wrap;overflow-wrap:anywhere}code,a{overflow-wrap:anywhere}footer{border-top:3px solid #345;padding:20px 0;font-weight:700}h1,h2,h3{line-height:1.2}</style><body>'
+        '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Evidence review</title><style>body{font:16px/1.55 system-ui,sans-serif;max-width:1000px;margin:40px auto;padding:0 24px;color:#15232b;background:#fafbfc}article{border:1px solid #bac8d0;padding:20px;margin:16px 0;background:white}img{max-width:100%;height:auto}table{width:100%;border-collapse:collapse}td,th{text-align:left;vertical-align:top;border-bottom:1px solid #ddd;padding:6px;overflow-wrap:anywhere}pre{white-space:pre-wrap;overflow-wrap:anywhere}code,a{overflow-wrap:anywhere}footer{border-top:3px solid #345;padding:20px 0;font-weight:700}h1,h2,h3{line-height:1.2}</style><body>'
         + "".join(body)
         + "</body></html>"
     )

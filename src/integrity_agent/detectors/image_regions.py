@@ -48,6 +48,26 @@ REGION_PARAMETERS = {
 }
 
 
+def region_parameters(compression=False):
+    if compression:
+        return REGION_PARAMETERS.copy()
+    keys = (
+        "max_components",
+        "component_contrast",
+        "min_component_area",
+        "min_patch_pixels",
+        "min_patch_ncc",
+        "min_residual_ncc",
+        "descriptor_candidates",
+        "descriptor_ncc",
+    )
+    return {
+        **{k: REGION_PARAMETERS[k] for k in keys},
+        "max_image_side": 900,
+        "transforms": ["translation", "horizontal reflection", "linear brightness"],
+    }
+
+
 def luminance(pixels, max_side=900):
     a = np.asarray(pixels, dtype=np.uint8)
     if a.ndim == 3:
@@ -232,7 +252,7 @@ def compression_support(a, b):
     return smooth_score, detail_score
 
 
-def pixel_match(a, b, *, same_image=False, proposals_a=None, proposals_b=None):
+def pixel_match(a, b, *, same_image=False, proposals_a=None, proposals_b=None, compression=False):
     first = regions(a) if proposals_a is None else proposals_a
     second = (first if same_image else regions(b)) if proposals_b is None else proposals_b
     if not first or not second:
@@ -247,7 +267,7 @@ def pixel_match(a, b, *, same_image=False, proposals_a=None, proposals_b=None):
             indices = np.argsort(-scores, kind="stable")[
                 : REGION_PARAMETERS["descriptor_candidates"] + int(same_image)
             ]
-            for scale in REGION_PARAMETERS["scales"]:
+            for scale in REGION_PARAMETERS["scales"] if compression else [1.0]:
                 patch = (
                     cv2.resize(original, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
                     if scale != 1
@@ -280,17 +300,17 @@ def pixel_match(a, b, *, same_image=False, proposals_a=None, proposals_b=None):
                     ):
                         continue
                     matched = b[qy : qy + h, qx : qx + w]
-                    if not structure_support(patch, matched):
+                    if compression and not structure_support(patch, matched):
                         continue
                     noise_score = correlation(residual(patch), residual(matched))
-                    compression = None
+                    support = None
                     if noise_score < REGION_PARAMETERS["min_residual_ncc"]:
-                        if score < REGION_PARAMETERS["compression_pixel_ncc"]:
+                        if not compression or score < REGION_PARAMETERS["compression_pixel_ncc"]:
                             continue
-                        compression = compression_support(patch, matched)
-                        if compression is None:
+                        support = compression_support(patch, matched)
+                        if support is None:
                             continue
-                    quality = noise_score if compression is None else compression[1]
+                    quality = noise_score if support is None else support[1]
                     old_quality = (
                         (best.residual_ncc if best.mode == "fine-residual" else best.detail_ncc)
                         if best
@@ -319,7 +339,7 @@ def pixel_match(a, b, *, same_image=False, proposals_a=None, proposals_b=None):
                         noise_score,
                         flipped,
                         scale,
-                        "compression-detail" if compression else "fine-residual",
-                        *(compression or (None, None)),
+                        "compression-detail" if support else "fine-residual",
+                        *(support or (None, None)),
                     )
     return best

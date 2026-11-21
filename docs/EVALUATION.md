@@ -32,7 +32,7 @@ A corpus file has `figures` entries produced by the preparation script and
 `confirmed_negative_pairs: [["artifact-id-1", "artifact-id-2"]]`. Different file names alone
 are not sufficient negative labels. The evaluation refuses an empty negative set.
 
-## Private sanity-check protocol (pending)
+## Private sanity-check protocol
 
 1. User selects one official public finding and several controls matched by field, career
    stage and approximate output. Preserve the official notice URL locally in `data/`.
@@ -47,7 +47,11 @@ are not sufficient negative labels. The evaluation refuses an empty negative set
 6. Share results privately with the requester. Keep all person-specific records and outputs
    under ignored local folders. Never include subject names or reports in public docs/history.
 
-The CC BY PMC pilot has run; the author-level private sanity check remains pending.
+The CC BY PMC pilot and a bounded author-level private run have completed. Private review
+was illustrative rather than exhaustive: expert adjudication of every strong finding remains
+outstanding. Individual identities, artifacts, reports and outcome counts are not committed.
+A figure-level flag does not establish recovery of a documented issue; the matched regions
+must agree with the reference, and available versions may already incorporate corrections.
 
 ### Pilot results
 

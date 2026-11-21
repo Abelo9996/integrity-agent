@@ -2,9 +2,9 @@
 
 The public repository is [Abelo9996/integrity-agent](https://github.com/Abelo9996/integrity-agent).
 M0–M5 have separate implementation commits. Hosted CI passed on Python 3.11 and 3.12
-for commit `0f64846`; see [the verified run](https://github.com/Abelo9996/integrity-agent/actions/runs/44877782806).
-The implementation and pilot evaluation are available; M6 remains pending and the full
-prototype definition of done has not been met.
+for commit `d9b50b6`; see [the verified run](https://github.com/Abelo9996/integrity-agent/actions/runs/44887318957).
+The implementation, synthetic pilot and bounded M6 private run are available. The full
+prototype definition of done has not been met; broader coverage and detector validation remain.
 
 | Milestone | Local implementation and verification | Remaining work |
 | --- | --- | --- |
@@ -14,7 +14,7 @@ prototype definition of done has not been met.
 | M3 | GRIM and conservative GRIMMER lattice/parity, multi-item averages, seeded baseline Monte Carlo | Broader real-table validation and richer automatic extraction |
 | M4 | Repeated row sequences, explicit distribution assumptions, XLSX internals/metadata | Real supplement coverage and domain-specific calibration |
 | M5 | DOI update history, RW CSV, registry/field context, text reuse, provider interface, verified reports | Live provider and registry/baseline integration checks; richer benign-context interpretation |
-| M6 | Private run protocol documented; all runtime directories ignored | Select and confirm official case and matched controls, acquire, run, review, share privately |
+| M6 | Confirmed profiles, bounded private acquisition, live ORCID CLI, verified HTML/JSON and illustrative evidence review; all individual outputs ignored | Independent expert adjudication, broader source coverage and detector refinement |
 
 Latest procedural benchmark: 20/20 category 1, 100/100 category 2 and 40/40 category 3
 manipulations detected and classified correctly; per-category precision/recall 100% at this
@@ -25,9 +25,9 @@ This narrowly generated texture family does not establish biomedical performance
 The optional LLM is intentionally constrained to existing finding IDs and review questions;
 report statements come from deterministic tool results. A verifier checks statement/tier,
 artifact and work associations, and input file SHA-256 before claims reach reports. No
-real-person run has been performed or saved in source files.
+individual run output is saved in source files; private outputs stay in ignored folders.
 
-Verification: all 47 tests pass locally on Python 3.11 and in hosted CI on Python 3.11
+Verification: all 60 tests pass locally on Python 3.11 and in hosted CI on Python 3.11
 and 3.12. Ruff lint/format and light mypy checks pass. Tests prohibit real HTTP calls.
 PyMuPDF emits upstream SWIG deprecation warnings during its test. The demo
 evidence image was visually inspected. A source/config/docs credential-pattern scan

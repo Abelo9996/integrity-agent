@@ -51,11 +51,13 @@ This is a prototype implementation, not a completed validation study. The offlin
 mocked ORCID workflow produce verified HTML/JSON. See [milestone status](docs/MILESTONES.md)
 and [evaluation protocol](docs/EVALUATION.md) for what has and has not been tested.
 The [CI workflow](https://github.com/Abelo9996/integrity-agent/actions/workflows/ci.yml)
-checks Python 3.11 and 3.12, including 47 tests, lint, types, the demo and Git-history hygiene.
+checks Python 3.11 and 3.12, including 60 tests, lint, types, the demo and Git-history hygiene.
 A small CC BY PMC pilot now complements the procedural smoke benchmark: paired category-2/3
 recall was 100% with 0/35 unrelated-pair matches, but standalone clone recall was 81.82%
 and 4/11 unmodified figures triggered review signals. See the evaluation caveats.
-The private matched-control run and broader live-source validation remain pending.
+A bounded private sanity check has run; individual reports and review notes remain local.
+It does not establish reliable screening. Broader source coverage, discrimination of ordinary
+text/graph repetition, small-blot sensitivity and independent expert adjudication remain necessary.
 
 Use `--llm` to enable Anthropic structured PDF extraction and finding prioritization;
 without it the complete evidence/report pipeline remains deterministic. Models cannot

@@ -51,6 +51,12 @@ aligned differences. Compression, annotations and resampling can create local di
 No category identifies intent. Matches between sources or versions of the same work are
 information tier; within-image duplication still warrants separate examination.
 
+Repeated graph legends, axis labels, bar-fill patterns and multiple representations of the
+same microscopy field can produce strong geometric matches with ordinary explanations.
+Conversely, a small, low-texture blot band can fall below the keypoint and size thresholds.
+A flag elsewhere in a figure does not establish recovery of a documented issue in that figure:
+reviewers must compare the actual matched coordinates, captions and source versions.
+
 ## Extraction and LLM boundary
 
 JATS tables are exported directly. Automatic typed statistics require separate, unambiguous
@@ -74,5 +80,7 @@ Provider use sends excerpts/captions to the configured service; it is opt-in.
 
 A small CC BY PMC pilot now accompanies the procedural benchmark; see EVALUATION.md.
 Paired category-2/3 detection was 100%, while standalone clone recall was 81.82%.
-Private official-case/matched-control validation remains outstanding pending an OpenAlex
-key and exact author-profile confirmation. Do not describe this prototype as validated or complete.
+A bounded private official-case/comparator run has completed; all individual results remain local.
+Review was illustrative, not exhaustive expert adjudication of every strong finding.
+The comparison is exploratory, with incomplete access and approximate matching. Do not
+describe this prototype as scientifically validated or complete.

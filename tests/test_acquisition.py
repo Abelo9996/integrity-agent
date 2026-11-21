@@ -4,7 +4,7 @@ from unittest.mock import Mock
 import httpx
 import pytest
 
-from integrity_agent.acquisition import Collector, resolve, works
+from integrity_agent.acquisition import Collector, pmcid, resolve, works
 from integrity_agent.models import Author, Work
 from integrity_agent.transport import AccessError, Transport
 
@@ -104,6 +104,84 @@ def test_unconfirmed_name_never_resolves_works():
     assert h.json.call_args.args[0].endswith("/authors")
 
 
+@pytest.mark.parametrize(
+    "value",
+    [
+        "PMC999999999",
+        "999999999",
+        "https://www.ncbi.nlm.nih.gov/pmc/articles/999999999",
+        "https://pmc.ncbi.nlm.nih.gov/articles/PMC999999999/",
+    ],
+)
+def test_pmc_identifier_normalization(value):
+    assert pmcid(value) == "PMC999999999"
+
+
+def test_pmc_location_resolves_missing_external_identifier():
+    h = Mock()
+    h.json.return_value = {
+        "results": [
+            {
+                "id": "W1",
+                "title": "Synthetic",
+                "authorships": [{"author": {"id": "A1"}}],
+                "locations": [
+                    {"landing_page_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC999999999/"}
+                ],
+            }
+        ],
+        "meta": {"count": 1},
+    }
+    assert works(h, Author(id="A1", name="Synthetic"))[0].pmcid == "PMC999999999"
+
+
+def test_truncated_byline_is_expanded_before_author_verification():
+    h = Mock()
+    h.json.side_effect = [
+        {
+            "results": [{"id": "W1", "is_authors_truncated": True, "authorships": []}],
+            "meta": {"count": 1},
+        },
+        {"id": "W1", "title": "Synthetic consortium", "authorships": [{"author": {"id": "A1"}}]},
+    ]
+    assert [w.id for w in works(h, Author(id="A1", name="Synthetic"))] == ["W1"]
+    assert h.json.call_args.args[0] == "https://api.openalex.org/works/W1"
+
+
+def test_unverified_filtered_work_aborts_instead_of_silent_omission():
+    h = Mock()
+    h.json.return_value = {"results": [{"id": "W1", "authorships": []}], "meta": {"count": 1}}
+    with pytest.raises(AccessError, match="confirmed author link"):
+        works(h, Author(id="A1", name="Synthetic"))
+
+
+def test_author_inventory_includes_hidden_records_on_every_page(monkeypatch):
+    monkeypatch.setenv("OPENALEX_API_KEY", "test-only")
+    h = Mock()
+
+    def page(url, *, params, headers):
+        assert params["include_pulled"] == "true"
+        assert params["include_parts"] == "true"
+        assert params["corpus"] == "all"
+        first = params["cursor"] == "*"
+        return {
+            "results": [
+                {
+                    "id": "W1" if first else "W2",
+                    "title": "Synthetic withdrawn work" if first else "Synthetic linked dataset",
+                    "is_pulled": first,
+                    "is_xpac": not first,
+                    "authorships": [{"author": {"id": "A1"}}],
+                }
+            ],
+            "meta": {"count": 2, "next_cursor": "next" if first else None},
+        }
+
+    h.json.side_effect = page
+    assert [w.id for w in works(h, Author(id="A1", name="Synthetic"))] == ["W1", "W2"]
+    assert h.json.call_count == 2
+
+
 def test_pmc_current_bucket_schema_and_exact_identifier(tmp_path):
     http = Mock()
     base = "https://pmc-oa-opendata.s3.amazonaws.com/"
@@ -153,6 +231,30 @@ def test_cache_corruption_redownloaded(tmp_path, monkeypatch):
     t.close()
 
 
+def test_pmc_explicit_tdm_manuscript_and_pdf_are_retained(tmp_path):
+    http = Mock()
+    base = "https://pmc-oa-opendata.s3.amazonaws.com/"
+    meta = {
+        "pmcid": "PMC999999999",
+        "is_pmc_openaccess": False,
+        "is_manuscript": True,
+        "license_code": "TDM",
+        "xml_url": base + "PMC999999999.1/paper.xml",
+        "pdf_url": base + "PMC999999999.1/paper.pdf",
+    }
+    http.get.side_effect = [
+        b"<ListBucketResult><Contents><Key>metadata/PMC999999999.1.json</Key></Contents></ListBucketResult>",
+        json.dumps(meta).encode(),
+        b"<article/>",
+        b"%PDF-synthetic",
+    ]
+    c = Collector(http, tmp_path)
+    c.pmc(Work(id="W1", title="Synthetic", author_id="A1", pmcid="PMC999999999"))
+    assert len(c.artifacts) == 3
+    assert all(a.license == "TDM" for a in c.artifacts)
+    assert c.artifacts[-1].path.endswith(".pdf")
+
+
 def test_zenodo_doi_link_retains_paper_provenance(tmp_path):
     from integrity_agent.repositories import linked_repository
 
@@ -194,6 +296,30 @@ def test_complete_first_page_works_without_key(monkeypatch):
     }
     assert len(works(h, Author(id="A1", name="Synthetic"))) == 1
     assert h.json.call_count == 1
+
+
+def test_xml_without_images_keeps_pdf_fallback_and_tries_other_copies(tmp_path):
+    h = Mock()
+    h.get.side_effect = [
+        json.dumps(
+            {
+                "doi": "10.synthetic/paper",
+                "oa_locations": [
+                    {"url_for_pdf": "https://example.org/denied.pdf"},
+                    {"url_for_pdf": "http://example.net/available.pdf", "license": "cc-by"},
+                ],
+            }
+        ).encode(),
+        AccessError("HTTP 403 from example.org"),
+        b"%PDF-synthetic",
+    ]
+    c = Collector(h, tmp_path)
+    w = Work(id="W1", title="Synthetic", author_id="A1", doi="10.synthetic/paper")
+    c.save(w, b"<article/>", "pmc", "https://example.org/paper.xml", w.id, "TDM", ".xml")
+    c.unpaywall(w)
+    assert c.artifacts[-1].path.endswith(".pdf")
+    assert c.artifacts[-1].url == "https://example.net/available.pdf"
+    assert [item.status for item in c.coverage] == ["failed", "ok"]
 
 
 def test_partial_first_page_requires_key(monkeypatch):

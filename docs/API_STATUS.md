@@ -1,4 +1,4 @@
-# API audit — 2026-11-20
+# API audit — 2026-11-21
 
 Official documentation was checked before implementation. Endpoints can change; individual
 failures are recorded in each report's coverage log. Authentication failure is never treated
@@ -30,3 +30,20 @@ Transport uses conservative per-host pacing, robots checks for downloaded web re
 bounded downloads, retry/backoff, and no authentication forwarding across redirects.
 No claim of exhaustive collection is possible: unavailable, blocked, unlicensed and oversized
 artifacts remain visible as coverage gaps.
+
+OpenAlex inventory follow-up: the [default works view](https://help.openalex.org/data/works/pulled/)
+excludes retracted, withdrawn and removed works starting November 19, 2026. Author inventory
+queries explicitly use `include_pulled=true`, `include_parts=true` and `corpus=all` on every
+page to retain pulled records, [linked component records and the expansion corpus](https://help.openalex.org/data/works/corpus/).
+These additions are essential for coverage; publication status is still reported only through
+identifier-linked detector results, not inferred from an author's publication count.
+List responses also truncate bylines and locations. When truncation is reported, inventory
+retrieves the single-work record before validating author membership or collecting location
+links; an unconfirmed author relationship aborts rather than silently shortening the list.
+See [authorship limits](https://help.openalex.org/data/authorships/).
+
+PMC identifiers are normalized from both legacy numeric NCBI URLs and current `PMC`-prefixed
+URLs. The S3 adapter accepts the OA subset and explicitly marked `TDM` author manuscripts,
+preserves the source license, and retrieves any listed PDF after XML and media. It does not
+infer permission to redistribute manuscripts. Text-only XML does not suppress PDF fallback;
+Unpaywall copies are tried independently so a failed location cannot hide another legal copy.

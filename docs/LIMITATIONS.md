@@ -12,6 +12,9 @@ it does not contain a trained misconduct classifier.
   wrong. ORCID is used as an exact identifier, never as a name-similarity shortcut.
 - Full OpenAlex cursor pagination needs a key. Failure aborts instead of silently returning
   a partial works list. `--max-works` deliberately limits analysis and records the gap.
+- Inventories explicitly include pulled works, linked components and expansion records;
+  these can contain non-article records and noisy metadata. Truncated bylines/locations are
+  expanded before verifying links. Author assignments still require human review.
 - The PMC S3 adapter has collected three source articles successfully; other source adapters
   primarily have synthetic contract tests, and live credentials and
   institutional TDM entitlements have not been validated in this prototype.
@@ -22,6 +25,9 @@ it does not contain a trained misconduct classifier.
   search or arbitrary repository crawling is performed. GEO accepts accession links.
 - PMC uses the 2026 versioned S3 layout. Europe PMC supplements may be unavailable independently
   of full text. arXiv licenses vary; downloaded sources are never automatically redistributable.
+- Some PMC versions expose XML/text without their figures. Explicitly licensed `TDM` author
+  manuscripts are retained for analysis with their original access restrictions; availability
+  does not establish redistribution rights. Legal PDF fallback may still be blocked or absent.
 - The cache is content addressed in SQLite plus blob files; mutable API metadata expires
   after 24 hours, PMC media after 30 days. Cache hits are checked against their content hash.
 - Robots rules are enforced for web downloads. Official API and S3 API requests follow

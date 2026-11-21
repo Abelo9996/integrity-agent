@@ -22,6 +22,13 @@ def doi(value):
     return re.sub(r"^https?://(?:dx\.)?doi.org/", "", value or "").lower().strip()
 
 
+def pmcid(value):
+    """Normalize PMC identifiers, including legacy NCBI URLs with numeric tails."""
+    token = urlsplit(value or "").path.rstrip("/").rsplit("/", 1)[-1]
+    match = re.fullmatch(r"(?:PMC)?(\d+)", token, flags=re.IGNORECASE)
+    return "PMC" + match.group(1) if match else None
+
+
 def openalex_headers():
     key = os.getenv("OPENALEX_API_KEY", "")
     return {"Authorization": f"Bearer {key}"} if key else {}
@@ -71,16 +78,44 @@ def works(http: Transport, author: Author) -> list[Work]:
                 "filter": f"authorships.author.id:{author.id}",
                 "per_page": 100,
                 "cursor": cursor,
+                # Integrity review must retain records hidden by the default view.
+                "include_pulled": "true",
+                "include_parts": "true",
+                "corpus": "all",
             },
             headers=openalex_headers(),
         )
         for r in page["results"]:
+            if r.get("is_authors_truncated") or r.get("locations_count", 0) > len(
+                r.get("locations") or []
+            ):
+                ident = r["id"].rsplit("/", 1)[-1]
+                if not re.fullmatch(r"W\d+", ident):
+                    raise AccessError("Invalid OpenAlex work identifier")
+                complete = http.json(
+                    f"https://api.openalex.org/works/{ident}", headers=openalex_headers()
+                )
+                if complete.get("id") != r["id"]:
+                    raise AccessError("OpenAlex full-work identifier mismatch")
+                r = complete
             if not any(
                 a.get("author", {}).get("id") == author.id for a in r.get("authorships", [])
             ):
-                continue
+                raise AccessError("OpenAlex returned a work without a confirmed author link")
             ids = r.get("ids") or {}
             locations = r.get("locations") or []
+            pmc_id = pmcid(ids.get("pmcid"))
+            if not pmc_id:
+                for location in locations:
+                    url = urlsplit(location.get("landing_page_url") or "")
+                    if (
+                        url.hostname
+                        in {"pmc.ncbi.nlm.nih.gov", "www.ncbi.nlm.nih.gov", "europepmc.org"}
+                        and "/articles/" in url.path
+                    ):
+                        pmc_id = pmcid(url.path)
+                        if pmc_id:
+                            break
             arxiv = next(
                 (
                     re.search(
@@ -102,7 +137,7 @@ def works(http: Transport, author: Author) -> list[Work]:
                     author_id=author.id,
                     year=r.get("publication_year"),
                     doi=doi(r.get("doi")) or None,
-                    pmcid=(ids.get("pmcid") or "").rstrip("/").rsplit("/", 1)[-1] or None,
+                    pmcid=pmc_id,
                     arxiv_id=arxiv.group(1) if arxiv else None,
                     venue=((r.get("primary_location") or {}).get("source") or {}).get(
                         "display_name", ""
@@ -226,13 +261,21 @@ class Collector:
             meta_url = base + key
             raw = self.http.get(meta_url)
             meta = json.loads(raw)
-            if str(meta.get("pmcid")) != w.pmcid or not meta.get("is_pmc_openaccess"):
+            permitted = meta.get("is_pmc_openaccess") or (
+                meta.get("is_manuscript") and meta.get("license_code") == "TDM"
+            )
+            if str(meta.get("pmcid")) != w.pmcid or not permitted:
                 continue
             if w.doi and meta.get("doi") and doi(meta["doi"]) != w.doi:
                 raise ValueError("PMC DOI disagrees with resolved work")
             license = meta.get("license_code") or "unspecified"
             parent = self.save(w, raw, "pmc", meta_url, w.pmcid, license, ".json")
-            urls = [meta.get("xml_url"), meta.get("text_url"), *meta.get("media_urls", [])]
+            urls = [
+                meta.get("xml_url"),
+                meta.get("text_url"),
+                *meta.get("media_urls", []),
+                meta.get("pdf_url"),
+            ]
             for url in filter(None, urls):
                 if url.startswith("s3://pmc-oa-opendata/"):
                     url = base + url.removeprefix("s3://pmc-oa-opendata/")
@@ -335,7 +378,9 @@ class Collector:
 
     def unpaywall(self, w):
         if not w.doi or any(
-            a.work_id == w.id and Path(a.path).suffix == ".xml" for a in self.artifacts
+            a.work_id == w.id
+            and Path(a.path).suffix.lower() in {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".zip"}
+            for a in self.artifacts
         ):
             return
         url = f"https://api.unpaywall.org/v2/{w.doi}"
@@ -347,19 +392,25 @@ class Collector:
         for loc in meta.get("oa_locations", []):
             pdf = loc.get("url_for_pdf")
             if pdf:
-                raw_pdf = self.http.get(pdf, download=True)
-                if not raw_pdf.startswith(b"%PDF"):
-                    continue
-                self.save(
-                    w,
-                    raw_pdf,
-                    "unpaywall",
-                    pdf,
-                    w.doi,
-                    loc.get("license") or "OA access; reuse license unspecified",
-                    ".pdf",
-                    parent=parent,
-                )
+                if pdf.startswith("http://"):
+                    pdf = "https://" + pdf.removeprefix("http://")
+
+                def acquire_copy(pdf=pdf, loc=loc):
+                    raw_pdf = self.http.get(pdf, download=True)
+                    if not raw_pdf.startswith(b"%PDF"):
+                        raise ValueError("OA location did not return a PDF")
+                    self.save(
+                        w,
+                        raw_pdf,
+                        "unpaywall",
+                        pdf,
+                        w.doi,
+                        loc.get("license") or "OA access; reuse license unspecified",
+                        ".pdf",
+                        parent=parent,
+                    )
+
+                self.attempt(w, "unpaywall-copy", acquire_copy)
 
     def crossref(self, w):
         if w.doi:

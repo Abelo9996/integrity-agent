@@ -1,0 +1,19 @@
+.env
+.env.*
+!.env.example
+outputs/
+cache/
+data/
+.venv*/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+*.egg-info/
+.DS_Store
+
+# Local task-management logs and private checkpoints
+.claude/
+.parallel-code/

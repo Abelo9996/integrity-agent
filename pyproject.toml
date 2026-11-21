@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "integrity-agent"
+version = "0.1.0"
+description = "Provenance-first research integrity screening for expert human review"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+dependencies = [
+  "httpx>=0.28,<1", "pydantic>=2.10,<3", "typer>=0.15,<1",
+  "lxml>=5,<7", "numpy>=2,<3", "scipy>=1.14,<2", "pillow>=11,<13",
+  "opencv-python-headless>=4.10,<5", "imagehash>=4.3,<5",
+  "scikit-image>=0.25,<1", "pandas>=2.2,<4", "openpyxl>=3.1,<4",
+  "pymupdf>=1.25,<2", "python-dotenv>=1,<2",
+]
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "ruff>=0.9,<1", "mypy>=1.14,<2"]
+
+[project.scripts]
+integrity-agent = "integrity_agent.cli:app"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+extend-exclude = [".venv*", "outputs", "cache", "data"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+check_untyped_defs = true
+files = ["src/integrity_agent/models.py", "src/integrity_agent/report.py"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

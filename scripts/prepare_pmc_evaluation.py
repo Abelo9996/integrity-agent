@@ -6,10 +6,10 @@ Requires INTEGRITY_CONTACT_EMAIL. Never stages files for Git automatically.
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
-import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -27,10 +27,12 @@ def cc_by(license: str) -> bool:
     return bool(re.search(r"(?:cc-?by|creativecommons.org/licenses/by/)", normalized))
 
 
-def prepare(ids):
+def prepare(ids, output=Path("data/pmc-evaluation")):
+    if (output / "corpus.json").exists():
+        raise ValueError("Corpus already exists; choose a new --output directory")
     load_dotenv(dotenv_path=Path(".env"))
     http = Transport(Path("cache"), os.getenv("INTEGRITY_CONTACT_EMAIL", ""))
-    collector = Collector(http, Path("data/pmc-evaluation"))
+    collector = Collector(http, output)
     corpus = []
     try:
         for pmcid in ids:
@@ -72,7 +74,7 @@ def prepare(ids):
                     "citation": citation,
                 }
             )
-        target = Path("data/pmc-evaluation/corpus.json")
+        target = output / "corpus.json"
         target.write_text(json.dumps({"figures": corpus, "confirmed_negative_pairs": []}, indent=2))
         print(f"{len(corpus)} eligible images: {target}")
         print(
@@ -83,6 +85,8 @@ def prepare(ids):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        raise SystemExit("Supply one or more PMCIDs; no researcher name search is performed.")
-    prepare(sys.argv[1:])
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("pmcid", nargs="+")
+    parser.add_argument("--output", type=Path, default=Path("data/pmc-evaluation"))
+    args = parser.parse_args()
+    prepare(args.pmcid, args.output)

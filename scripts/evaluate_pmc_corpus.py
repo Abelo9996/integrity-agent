@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
-import sys
 from pathlib import Path
 
 import cv2
@@ -17,7 +17,7 @@ from integrity_agent.evaluation import manipulations, panel
 from integrity_agent.evaluation_regions import RegionCase, localized
 
 
-def run(manifest):
+def run(manifest, output=Path("outputs/pmc-evaluation")):
     spec = json.loads(Path(manifest).read_text())
     if not spec.get("confirmed_negative_pairs"):
         raise ValueError(
@@ -91,11 +91,15 @@ def run(manifest):
         "copy_move_metric_note": "copy_move_recall is legacy any-signal recall; localization requires four correspondences in both injected regions.",
         "normalization": "central square crop resized to 320px",
     }
-    target = Path("outputs/pmc-evaluation")
+    target = Path(output)
     target.mkdir(parents=True, exist_ok=True)
     (target / "metrics.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":
-    run(sys.argv[1])
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("manifest", type=Path)
+    parser.add_argument("--output", type=Path, default=Path("outputs/pmc-evaluation"))
+    args = parser.parse_args()
+    run(args.manifest, args.output)

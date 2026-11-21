@@ -1,0 +1,54 @@
+{
+  "selection": "First two source URLs per article, before detector results; native dimensions; no person selection.",
+  "figures": [
+    {
+      "id": "artifact-d2b2bdd5139153930b89",
+      "pmcid": "PMC10151465",
+      "source": "https://pmc-oa-opendata.s3.amazonaws.com/PMC10151465.1/pnas.2218623120fig01.jpg?md5=d7d7ed39944409093b55a01f5e5439a5",
+      "sha256": "e1d0e50a4d40206575713b3db504bc0cc2acfe0bf6442bec33b95beab9d6f72c",
+      "license": "CC BY",
+      "citation": "Proc Natl Acad Sci U S A. 2023 Apr 17;120(17):e2218623120. doi: 10.1073/pnas.2218623120"
+    },
+    {
+      "id": "artifact-9eb0fbfc062c33ae09ce",
+      "pmcid": "PMC10151465",
+      "source": "https://pmc-oa-opendata.s3.amazonaws.com/PMC10151465.1/pnas.2218623120fig02.jpg?md5=a9294e021d7dc1d412f91ba2bfd3150d",
+      "sha256": "933b4e09525cfe353b06c4d464fa498ba96ab05b63a2803b97598c28352469b4",
+      "license": "CC BY",
+      "citation": "Proc Natl Acad Sci U S A. 2023 Apr 17;120(17):e2218623120. doi: 10.1073/pnas.2218623120"
+    },
+    {
+      "id": "artifact-85daad79ef46ea056a5f",
+      "pmcid": "PMC10819415",
+      "source": "https://pmc-oa-opendata.s3.amazonaws.com/PMC10819415.1/sensors-24-00667-g001.jpg?md5=b4df961b83e7bf2b53a11b66554a6946",
+      "sha256": "902c6c2c6245a1bc53d4ae93f3b92c05d0bb2145bc7e690331abbb6cafa0cb38",
+      "license": "CC BY",
+      "citation": "Sensors (Basel). 2024 Jan 20;24(2):667. doi: 10.3390/s24020667"
+    },
+    {
+      "id": "artifact-6a659781f2ab039a46b8",
+      "pmcid": "PMC10819415",
+      "source": "https://pmc-oa-opendata.s3.amazonaws.com/PMC10819415.1/sensors-24-00667-g002.jpg?md5=2a29dbe7ff63c435874f8ed6703404a6",
+      "sha256": "7260898bac05a38d0c55aa7483bcf3d7eff1bb9b80de6b7685ff3708977caa55",
+      "license": "CC BY",
+      "citation": "Sensors (Basel). 2024 Jan 20;24(2):667. doi: 10.3390/s24020667"
+    },
+    {
+      "id": "artifact-ccb3a581f53f18f07fd8",
+      "pmcid": "PMC11875362",
+      "source": "https://pmc-oa-opendata.s3.amazonaws.com/PMC11875362.1/pone.0308055.g001.jpg?md5=b20aab3bf59fcc81a49e720e8faea497",
+      "sha256": "71293c0c58010e4267414a35eee79e98d781037c3adfe7743f1381e08fe60fd3",
+      "license": "CC BY",
+      "citation": "PLoS One. 2025 Mar 3;20(3):e0308055. doi: 10.1371/journal.pone.0308055"
+    },
+    {
+      "id": "artifact-e7c60797003829ecc7ea",
+      "pmcid": "PMC11875362",
+      "source": "https://pmc-oa-opendata.s3.amazonaws.com/PMC11875362.1/pone.0308055.g002.jpg?md5=6106ba224938100a375e7f91c83a5b27",
+      "sha256": "b001b70e7ffba57fcdbd4c3e010502f55f580ef21d0a0b3cff832618ad768067",
+      "license": "CC BY",
+      "citation": "PLoS One. 2025 Mar 3;20(3):e0308055. doi: 10.1371/journal.pone.0308055"
+    }
+  ],
+  "license_review": "Article permissions and first two figure captions inspected; no figure-specific third-party restriction found; generated images stay local."
+}

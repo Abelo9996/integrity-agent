@@ -68,7 +68,9 @@ These labels were reviewed by the assistant and have **not** been independently
 adjudicated by a human. A descriptive binomial 95% upper bound is about 10%; pairs
 share source images, so independence is not established and this is not a population bound.
 
-Standalone copy-move detected 9/11 injected clones (81.82%), below 90%. All 22 category-3
+Standalone copy-move detected 9/11 injected clones (81.82%), below 90%. It also
+raised signals on 4/11 unmodified source figures; these are unadjudicated review signals,
+not verified errors or evidence of misconduct, and demonstrate substantial review burden. All 22 category-3
 pairs above were detectable when the original source image was available. These are
 separate capabilities; do not substitute paired recall for standalone copy-move sensitivity.
 The pilot used the thresholds already fixed before these downloads and made no detector

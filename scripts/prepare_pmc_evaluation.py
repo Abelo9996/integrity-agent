@@ -28,7 +28,7 @@ def cc_by(license: str) -> bool:
 
 
 def prepare(ids):
-    load_dotenv()
+    load_dotenv(dotenv_path=Path(".env"))
     http = Transport(Path("cache"), os.getenv("INTEGRITY_CONTACT_EMAIL", ""))
     collector = Collector(http, Path("data/pmc-evaluation"))
     corpus = []

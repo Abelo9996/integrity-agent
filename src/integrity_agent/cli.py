@@ -32,7 +32,7 @@ def run(
     with_field_baseline: bool = True,
 ):
     """Resolve an author, require confirmation, and write private local evidence reports."""
-    load_dotenv()
+    load_dotenv(dotenv_path=Path(".env"))
     if max_works is not None and max_works <= 0:
         raise typer.BadParameter("--max-works must be positive")
     http = None

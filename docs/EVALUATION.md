@@ -1,6 +1,13 @@
 # Evaluation protocol
 
-## Current image iteration
+## Compression follow-up and independent review preparation
+
+The standard profile remains the default. See [compression results and regressions](COMPRESSION_ITERATION.md)
+for the opt-in experimental profile, and [independent review preparation](INDEPENDENT_REVIEW.md)
+for the new native-figure packet. Its 24 human labels are pending. No population sensitivity,
+specificity or successful independent validation is claimed.
+
+## Standard image profile
 
 The detector now requires distributed texture around SIFT keypoints to reduce matches
 supported only by ordinary typography, rules and hatching. A bounded, separate search

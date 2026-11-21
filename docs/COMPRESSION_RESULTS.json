@@ -1,0 +1,532 @@
+{
+  "fixture_commit": "9a243ab",
+  "experimental_threshold_freeze": "71afab0",
+  "default_profile": "standard",
+  "holdout_standard": {
+    "split": "heldout",
+    "seeds": [
+      41000,
+      41001,
+      41002,
+      41003,
+      41004,
+      41005,
+      41006,
+      41007
+    ],
+    "positives": {
+      "lanes/native": {
+        "signals": 8,
+        "localized": 8,
+        "total": 8
+      },
+      "lanes/jpeg95": {
+        "signals": 8,
+        "localized": 8,
+        "total": 8
+      },
+      "lanes/jpeg85": {
+        "signals": 8,
+        "localized": 8,
+        "total": 8
+      },
+      "lanes/jpeg75": {
+        "signals": 8,
+        "localized": 8,
+        "total": 8
+      },
+      "lanes/recompressed": {
+        "signals": 8,
+        "localized": 7,
+        "total": 8
+      },
+      "lanes/scaled": {
+        "signals": 8,
+        "localized": 0,
+        "total": 8
+      },
+      "cells/native": {
+        "signals": 8,
+        "localized": 7,
+        "total": 8
+      },
+      "cells/jpeg95": {
+        "signals": 8,
+        "localized": 8,
+        "total": 8
+      },
+      "cells/jpeg85": {
+        "signals": 8,
+        "localized": 8,
+        "total": 8
+      },
+      "cells/jpeg75": {
+        "signals": 8,
+        "localized": 7,
+        "total": 8
+      },
+      "cells/recompressed": {
+        "signals": 7,
+        "localized": 6,
+        "total": 8
+      },
+      "cells/scaled": {
+        "signals": 0,
+        "localized": 0,
+        "total": 8
+      }
+    },
+    "negatives": {
+      "lanes/independent": {
+        "signals": 8,
+        "total": 8
+      },
+      "lanes/jpeg-independent": {
+        "signals": 8,
+        "total": 8
+      },
+      "lanes/smooth-twins": {
+        "signals": 8,
+        "total": 8
+      },
+      "lanes/shared-labels": {
+        "signals": 8,
+        "total": 8
+      },
+      "cells/independent": {
+        "signals": 0,
+        "total": 8
+      },
+      "cells/jpeg-independent": {
+        "signals": 0,
+        "total": 8
+      },
+      "cells/smooth-twins": {
+        "signals": 8,
+        "total": 8
+      },
+      "cells/shared-labels": {
+        "signals": 0,
+        "total": 8
+      }
+    },
+    "limitation": "Procedural families, correlated transformations; no biological sensitivity or population false-positive guarantee.",
+    "detector_hashes": {
+      "images.py": "867cf9d19e551c06acc4f9c87c416eda736aa010d53360e7411705cf06b5fa63",
+      "image_regions.py": "b11f5322c8d7a185b9010674d69fbc389b62b8adaeea48cf542d9e6db896e296"
+    },
+    "fixture_sha256": "0552f171f0516dcd6e18f8db16dbc7ba255c066c42ca896042b1fced7e896e5b"
+  },
+  "holdout_experimental": {
+    "split": "heldout",
+    "seeds": [
+      41000,
+      41001,
+      41002,
+      41003,
+      41004,
+      41005,
+      41006,
+      41007
+    ],
+    "positives": {
+      "lanes/native": {
+        "signals": 8,
+        "localized": 8,
+        "total": 8
+      },
+      "lanes/jpeg95": {
+        "signals": 8,
+        "localized": 8,
+        "total": 8
+      },
+      "lanes/jpeg85": {
+        "signals": 8,
+        "localized": 8,
+        "total": 8
+      },
+      "lanes/jpeg75": {
+        "signals": 8,
+        "localized": 8,
+        "total": 8
+      },
+      "lanes/recompressed": {
+        "signals": 8,
+        "localized": 8,
+        "total": 8
+      },
+      "lanes/scaled": {
+        "signals": 7,
+        "localized": 7,
+        "total": 8
+      },
+      "cells/native": {
+        "signals": 7,
+        "localized": 7,
+        "total": 8
+      },
+      "cells/jpeg95": {
+        "signals": 8,
+        "localized": 8,
+        "total": 8
+      },
+      "cells/jpeg85": {
+        "signals": 4,
+        "localized": 4,
+        "total": 8
+      },
+      "cells/jpeg75": {
+        "signals": 1,
+        "localized": 1,
+        "total": 8
+      },
+      "cells/recompressed": {
+        "signals": 7,
+        "localized": 7,
+        "total": 8
+      },
+      "cells/scaled": {
+        "signals": 7,
+        "localized": 7,
+        "total": 8
+      }
+    },
+    "negatives": {
+      "lanes/independent": {
+        "signals": 0,
+        "total": 8
+      },
+      "lanes/jpeg-independent": {
+        "signals": 0,
+        "total": 8
+      },
+      "lanes/smooth-twins": {
+        "signals": 0,
+        "total": 8
+      },
+      "lanes/shared-labels": {
+        "signals": 0,
+        "total": 8
+      },
+      "cells/independent": {
+        "signals": 0,
+        "total": 8
+      },
+      "cells/jpeg-independent": {
+        "signals": 0,
+        "total": 8
+      },
+      "cells/smooth-twins": {
+        "signals": 0,
+        "total": 8
+      },
+      "cells/shared-labels": {
+        "signals": 0,
+        "total": 8
+      }
+    },
+    "limitation": "Procedural families, correlated transformations; no biological sensitivity or population false-positive guarantee.",
+    "detector_hashes": {
+      "images.py": "7a7b18e4b2200923047c756dcd1d79a67f5520f4d91d89ba718b35e766d2d679",
+      "image_regions.py": "794673ced0ad1c0ff3bb1d1130e0ed8004fa62cfb110076c5702dd5cf47af7ff"
+    },
+    "fixture_sha256": "0552f171f0516dcd6e18f8db16dbc7ba255c066c42ca896042b1fced7e896e5b"
+  },
+  "profile_integration_replay": {
+    "standard": {
+      "counts_match_frozen": true,
+      "detector_hashes": {
+        "images.py": "90213f9ec314c91a111bf8038637b31d54f24ce35ca2e7d830b6ed2e6e77e1ea",
+        "image_regions.py": "68ae81dc02979a12bd5b8542ed9646c52e7115851938d23489937e2eec93af02"
+      }
+    },
+    "experimental-compression": {
+      "counts_match_frozen": true,
+      "detector_hashes": {
+        "images.py": "90213f9ec314c91a111bf8038637b31d54f24ce35ca2e7d830b6ed2e6e77e1ea",
+        "image_regions.py": "68ae81dc02979a12bd5b8542ed9646c52e7115851938d23489937e2eec93af02"
+      }
+    }
+  },
+  "experimental_legacy_small_regions": {
+    "dataset": "procedural small bands and shared typography; not biomedical validation",
+    "seeds": [
+      3000,
+      3001,
+      3002,
+      3003,
+      3004,
+      3005,
+      3006,
+      3007,
+      3008,
+      3009,
+      3010,
+      3011,
+      3012,
+      3013,
+      3014,
+      3015,
+      3016,
+      3017,
+      3018,
+      3019
+    ],
+    "positives": {
+      "copy": {
+        "detected": 12,
+        "localized": 12,
+        "total": 20
+      },
+      "flip": {
+        "detected": 12,
+        "localized": 12,
+        "total": 20
+      },
+      "contrast": {
+        "detected": 12,
+        "localized": 12,
+        "total": 20
+      },
+      "jpeg": {
+        "detected": 0,
+        "localized": 0,
+        "total": 20
+      },
+      "cross-paper": {
+        "detected": 12,
+        "localized": 12,
+        "total": 20
+      }
+    },
+    "negatives": {
+      "independent-bands": {
+        "signals": 0,
+        "total": 20
+      },
+      "shared-annotations": {
+        "signals": 0,
+        "total": 20
+      },
+      "table-self": {
+        "signals": 0,
+        "total": 20
+      },
+      "table-pair": {
+        "signals": 0,
+        "total": 20
+      },
+      "plot-self": {
+        "signals": 0,
+        "total": 20
+      },
+      "plot-pair": {
+        "signals": 0,
+        "total": 20
+      }
+    },
+    "localization_rule": "At least four correspondence points must lie in both known injected regions; a figure-level flag is insufficient.",
+    "caveat": "Fixtures share layout templates; counts do not establish population sensitivity or specificity.",
+    "detector_sha256": "7a7b18e4b2200923047c756dcd1d79a67f5520f4d91d89ba718b35e766d2d679",
+    "region_detector_sha256": "794673ced0ad1c0ff3bb1d1130e0ed8004fa62cfb110076c5702dd5cf47af7ff",
+    "fixtures_sha256": "6a316eaac88049433ede3f9a4818bddeb9cba1b756e7c75dabf155ca6900609b",
+    "legacy_coordinate_capture": false
+  },
+  "experimental_legacy_licensed": {
+    "source_manifest": "data/pmc-evaluation/corpus.json",
+    "source_count": 11,
+    "categories": {
+      "1": {
+        "detection_recall": 1.0,
+        "classification_recall": 1.0,
+        "classification_precision": 1.0
+      },
+      "2": {
+        "detection_recall": 0.9272727272727272,
+        "classification_recall": 0.8727272727272727,
+        "classification_precision": 1.0
+      },
+      "3": {
+        "detection_recall": 1.0,
+        "classification_recall": 1.0,
+        "classification_precision": 0.88
+      }
+    },
+    "confusion_actual_by_predicted": {
+      "0": {
+        "0": 35,
+        "1": 0,
+        "2": 0,
+        "3": 0
+      },
+      "1": {
+        "0": 0,
+        "1": 11,
+        "2": 0,
+        "3": 0
+      },
+      "2": {
+        "0": 4,
+        "1": 0,
+        "2": 48,
+        "3": 3
+      },
+      "3": {
+        "0": 0,
+        "1": 0,
+        "2": 0,
+        "3": 22
+      }
+    },
+    "negative_pairs": 35,
+    "false_positives": 0,
+    "negative_pair_fpr_95pct_upper": 0.10003243557210503,
+    "interval_note": "Descriptive binomial bound only; shared source images make pairs dependent.",
+    "negative_review": {
+      "method": "Assistant visual inspection of the 11-image contact sheet; different articles and visibly different image content",
+      "independent_human_review": false
+    },
+    "unmodified_copy_move_signals": 1,
+    "unmodified_images": 11,
+    "false_positive_rate": 0.0,
+    "copy_move_recall": 0.7272727272727273,
+    "copy_move_localization_recall": 0.7272727272727273,
+    "copy_move_metric_note": "copy_move_recall is legacy any-signal recall; localization requires four correspondences in both injected regions.",
+    "normalization": "central square crop resized to 320px"
+  },
+  "experimental_legacy_textured": {
+    "dataset": "procedural textured figures, seeds 1000+; no biomedical generalization",
+    "categories": {
+      "1": {
+        "tp": 20,
+        "fn": 0,
+        "recall": 1.0
+      },
+      "2": {
+        "tp": 100,
+        "fn": 0,
+        "recall": 1.0
+      },
+      "3": {
+        "tp": 40,
+        "fn": 0,
+        "recall": 1.0
+      }
+    },
+    "classification": {
+      "1": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "correct": 20,
+        "predicted": 20,
+        "actual": 20
+      },
+      "2": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "correct": 100,
+        "predicted": 100,
+        "actual": 100
+      },
+      "3": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "correct": 40,
+        "predicted": 40,
+        "actual": 40
+      }
+    },
+    "confusion_actual_by_predicted": {
+      "0": {
+        "0": 100,
+        "1": 0,
+        "2": 0,
+        "3": 0
+      },
+      "1": {
+        "0": 0,
+        "1": 20,
+        "2": 0,
+        "3": 0
+      },
+      "2": {
+        "0": 0,
+        "1": 0,
+        "2": 100,
+        "3": 0
+      },
+      "3": {
+        "0": 0,
+        "1": 0,
+        "2": 0,
+        "3": 40
+      }
+    },
+    "manipulations": {
+      "duplicate": {
+        "hits": 20,
+        "total": 20
+      },
+      "crop": {
+        "hits": 20,
+        "total": 20
+      },
+      "rotate": {
+        "hits": 20,
+        "total": 20
+      },
+      "flip": {
+        "hits": 20,
+        "total": 20
+      },
+      "scale": {
+        "hits": 20,
+        "total": 20
+      },
+      "contrast": {
+        "hits": 20,
+        "total": 20
+      },
+      "cloned-regions": {
+        "hits": 20,
+        "total": 20
+      },
+      "edited-features": {
+        "hits": 20,
+        "total": 20
+      }
+    },
+    "false_positives": 0,
+    "negative_pairs": 100,
+    "false_positive_rate": 0.0,
+    "false_positive_rate_95pct_upper": 0.03621669264517641,
+    "precision_at_benchmark_mix": 1.0,
+    "copy_move_recall": 1.0,
+    "copy_move_localization_recall": 1.0,
+    "copy_move_metric_note": "copy_move_recall is legacy any-signal recall; localization requires four correspondences in both injected regions.",
+    "copy_move_false_positives": 0,
+    "copy_move_negative_images": 100,
+    "interpretation": "Categories label injected manipulations. Reuse detection is not correct classification of edits. No claim of clinical sensitivity."
+  },
+  "new_native_licensed_packet": {
+    "profile": "experimental-compression",
+    "human_labels": {
+      "pending": 24
+    },
+    "generated_manipulations": {
+      "horizontal-flip": {
+        "total": 6,
+        "signals": 6,
+        "localized": 0
+      },
+      "injected-clone": {
+        "total": 6,
+        "signals": 4,
+        "localized": 0
+      }
+    },
+    "adjudicated_negative_count": 0,
+    "adjudicated_negative_signal_rate": null,
+    "note": "No expert review; generated localization does not describe the integrity of source authors."
+  }
+}

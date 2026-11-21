@@ -51,3 +51,14 @@ creation-time evidence hashes and resolved-path confinement. Synthetic regressio
 the previous duplicate-ID rendering error and missing-overlay acceptance, then verify that
 claims are rejected. Private reports and image detector thresholds remain unchanged; see
 [the verification contract and next priorities](EVIDENCE_VERIFICATION.md).
+
+## Compression, execution coverage and review preparation follow-up
+
+New fixtures were frozen at9a243ab and the experimental matcher at71afab0 before holdout.
+It localized81/96newcases with0/64constructed-negative signals, but regression losses keep
+it opt-in. Standard behavior is retained and replayed against the previous implementation.
+Schema1.2 records actual subcheck coverage and groups equivalent verified image evidence;
+all raw claims/IDs remain available. The local24-case licensed packet and incomplete-label
+scorer are ready, with every human label pending. New native clone localization is0/6.
+101offline tests pass, with lint, types and demo checks. The scientific definition of done
+remains unmet; see [measured tradeoffs](COMPRESSION_ITERATION.md) and [review protocol](INDEPENDENT_REVIEW.md).

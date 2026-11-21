@@ -104,3 +104,12 @@ avoid treating a supplement ZIP as image coverage, and try exact-work OpenAlex O
 PDF locations after other fallbacks. Identifier/author checks, license records and robots
 checks still apply. These paths have offline contract tests; their impact on private-cohort
 coverage has not been measured in this iteration. Unavailable media remain coverage gaps.
+
+## Experimental compression and review coverage
+
+The optional compression profile has sensitivity regressions and is disabled by default.
+It misses all six injected native-figure clones in the new packet under strict localization,
+despite four off-target signals. Neither image profile meets a broad validated 90% target.
+The new blinded packet has no independent human labels yet. Reports show per-subcheck
+execution status and preserve raw evidence when grouping equivalent results; completed
+checks still depend on input eligibility, bounded search and acquisition coverage.

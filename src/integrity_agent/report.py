@@ -93,6 +93,8 @@ def write_report(
             }
         ),
         "papers_indexed": len(works),
+        "works_analyzed": len(works),
+        "author_profile_works_count": author.works_count,
         "artifacts_collected": len(artifacts),
     }
     report = {
@@ -114,12 +116,23 @@ def write_report(
     body = [
         f"<h1>Evidence review: {esc(author.name)}</h1>",
         "<p>No overall verdict is provided.</p>",
-        f"<p>{summary['papers_indexed']} papers indexed; {len(artifacts)} artifacts collected; "
+        f"<p>{summary['works_analyzed']} works analyzed; {len(artifacts)} artifacts collected; "
         f"{len(strong)} papers with strong findings.</p>",
-        "<h2>Benign explanations to examine</h2><ul>"
-        + "".join(f"<li>{esc(q)}</li>" for q in REVIEW_QUESTIONS.values())
-        + "</ul>",
     ]
+    scope_notes = [c.detail for c in coverage if c.work_id == author.id and c.status == "skipped"]
+    if scope_notes:
+        body.append(
+            "<aside><h2>Scope of this run</h2><ul>"
+            + "".join(f"<li>{esc(note)}</li>" for note in scope_notes)
+            + "</ul></aside>"
+        )
+    body.extend(
+        [
+            "<h2>Benign explanations to examine</h2><ul>"
+            + "".join(f"<li>{esc(q)}</li>" for q in REVIEW_QUESTIONS.values())
+            + "</ul>",
+        ]
+    )
     for work in works:
         body.append(
             f"<section><h2>{esc(work.title)}</h2><p>{esc(str(work.year))} · {esc(work.venue)}</p>"

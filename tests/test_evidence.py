@@ -5,7 +5,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from integrity_agent.cli import app
-from integrity_agent.models import Artifact, Author, Claim, Work, finding
+from integrity_agent.models import Artifact, Author, Claim, Coverage, Work, finding
 from integrity_agent.report import claims_from_findings, verify, write_report
 
 
@@ -71,6 +71,24 @@ def test_demo_end_to_end(tmp_path, monkeypatch):
     for f in report["findings"]:
         for path in f["evidence_files"]:
             assert (Path("outputs/demo") / path).exists()
+
+
+def test_limited_run_displays_scope_before_paper_results(tmp_path):
+    author = Author(id="synthetic", name="Synthetic", works_count=100)
+    note = "Explicit limit: analyzed 1 of 100 indexed works"
+    report = write_report(
+        tmp_path,
+        author,
+        [Work(id="w", title="Synthetic paper", author_id=author.id)],
+        [],
+        [],
+        [Coverage(work_id=author.id, source="work limit", status="skipped", detail=note)],
+    )
+    rendered = (tmp_path / "report.html").read_text()
+    assert rendered.index(note) < rendered.index("<section>")
+    assert "1 works analyzed" in rendered
+    assert report["summary"]["works_analyzed"] == 1
+    assert report["summary"]["author_profile_works_count"] == 100
 
 
 def test_run_requires_contact_email(tmp_path, monkeypatch):

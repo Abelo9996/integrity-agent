@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from integrity_agent.detectors.images import compare, copy_move
+from integrity_agent.detectors.images import compare, copy_move, detect
 from integrity_agent.evaluation import manipulations, panel, synthetic_image
 from integrity_agent.extraction import split_panels
 
@@ -51,3 +51,13 @@ def test_geometry_and_local_difference_categories():
             compare(panel(a, "a"), panel(b, "b", "other")).finding.measurements["category"]
             == expected
         )
+
+
+def test_cached_batch_preserves_finding_and_evidence():
+    a = panel(synthetic_image(40), "a")
+    _, pixels = manipulations(a.pixels)["flip"]
+    b = panel(pixels, "b", "other")
+    direct = compare(a, b)
+    cached = next(m for m in detect([a, b]) if m.finding.kind == "image-reuse")
+    assert cached.finding == direct.finding
+    assert np.array_equal(cached.evidence, direct.evidence)

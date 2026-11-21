@@ -50,18 +50,21 @@ def variants(a):
 
 
 def hashes(a):
+    def bits(value):
+        return int.from_bytes(np.packbits(value.hash).tobytes(), "big")
+
     return [
         (
-            imagehash.phash(Image.fromarray(v)),
-            imagehash.dhash(Image.fromarray(v)),
-            imagehash.whash(Image.fromarray(v)),
+            bits(imagehash.phash(Image.fromarray(v))),
+            bits(imagehash.dhash(Image.fromarray(v))),
+            bits(imagehash.whash(Image.fromarray(v))),
         )
         for v, _, _ in variants(a)
     ]
 
 
 def hash_distance(ha, hb):
-    return min(min(int(x - y) for x, y in zip(a, b, strict=True)) for a in ha for b in hb)
+    return min((x ^ y).bit_count() for a in ha for b in hb for x, y in zip(a, b, strict=True))
 
 
 def features(a):
@@ -141,9 +144,19 @@ def local_differences(source, target, matrix):
 
 
 def compare(
-    a: Panel, b: Panel, *, min_inliers=14, min_ratio=0.55, cached_a=None, cached_b=None
+    a: Panel,
+    b: Panel,
+    *,
+    min_inliers=14,
+    min_ratio=0.55,
+    cached_a=None,
+    cached_b=None,
+    normalized_a=None,
+    normalized_b=None,
+    flipped_features_b=None,
 ) -> Match | None:
-    aa, bb = gray(a.pixels), gray(b.pixels)
+    aa = gray(a.pixels) if normalized_a is None else normalized_a
+    bb = gray(b.pixels) if normalized_b is None else normalized_b
     if min(np.std(aa), np.std(bb)) < 7 or min(*aa.shape, *bb.shape) < 48:
         return None
     ha, ka, da = cached_a or (hashes(aa), *features(aa))
@@ -152,7 +165,11 @@ def compare(
     best = None
     for flipped in (False, True):
         target = np.ascontiguousarray(np.fliplr(bb)) if flipped else bb
-        k2, d2 = features(target) if flipped else (kb, db)
+        k2, d2 = (
+            (flipped_features_b if flipped_features_b is not None else features(target))
+            if flipped
+            else (kb, db)
+        )
         matches = good_matches(da, d2)
         # Descriptor retrieval rescues crops that global hashes cannot shortlist.
         if distance > 12 and len(matches) < min_inliers:
@@ -228,9 +245,12 @@ def compare(
     return Match(f, overlay(aa, target, src, dst))
 
 
-def copy_move(panel: Panel, *, min_matches=10) -> Match | None:
-    a = gray(panel.pixels)
-    kp, des = features(a)
+def copy_move(panel: Panel, *, min_matches=10, cached=None) -> Match | None:
+    if cached is None:
+        a = gray(panel.pixels)
+        kp, des = features(a)
+    else:
+        a, kp, des = cached
     if des is None or len(des) < 20:
         return None
     clusters = {}
@@ -284,16 +304,28 @@ def copy_move(panel: Panel, *, min_matches=10) -> Match | None:
 def detect(panels: list[Panel]) -> list[Match]:
     results = []
     cache = {}
+    normalized = {}
+    flipped = {}
     for p in panels:
         a = gray(p.pixels)
         cache[p.id] = (hashes(a), *features(a))
-        m = copy_move(p)
+        normalized[p.id] = a
+        flipped[p.id] = features(np.ascontiguousarray(np.fliplr(a)))
+        m = copy_move(p, cached=(a, *cache[p.id][1:]))
         if m:
             results.append(m)
     for a, b in combinations(panels, 2):
         if a.artifact_id == b.artifact_id:
             continue
-        m = compare(a, b, cached_a=cache[a.id], cached_b=cache[b.id])
+        m = compare(
+            a,
+            b,
+            cached_a=cache[a.id],
+            cached_b=cache[b.id],
+            normalized_a=normalized[a.id],
+            normalized_b=normalized[b.id],
+            flipped_features_b=flipped[b.id],
+        )
         if m:
             results.append(m)
     return results

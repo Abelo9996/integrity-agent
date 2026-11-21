@@ -9,6 +9,8 @@ reports. It does not assess intent or decide whether a person committed miscondu
 ## Quick start
 
 ```sh
+git clone https://github.com/Abelo9996/integrity-agent.git
+cd integrity-agent
 uv sync --dev
 uv run integrity-agent demo
 cp .env.example .env
@@ -48,6 +50,8 @@ preprint versions and corrections can all affect interpretation. No detector mea
 This is a prototype implementation, not a completed validation study. The offline demo and
 mocked ORCID workflow produce verified HTML/JSON. See [milestone status](docs/MILESTONES.md)
 and [evaluation protocol](docs/EVALUATION.md) for what has and has not been tested.
+The [CI workflow](https://github.com/Abelo9996/integrity-agent/actions/workflows/ci.yml)
+checks Python 3.11 and 3.12, including 47 tests, lint, types, the demo and Git-history hygiene.
 A small CC BY PMC pilot now complements the procedural smoke benchmark: paired category-2/3
 recall was 100% with 0/35 unrelated-pair matches, but standalone clone recall was 81.82%
 and 4/11 unmodified figures triggered review signals. See the evaluation caveats.

@@ -14,7 +14,7 @@ it does not contain a trained misconduct classifier.
   a partial works list. `--max-works` deliberately limits analysis and records the gap.
 - The PMC S3 adapter has collected three source articles successfully; other source adapters
   primarily have synthetic contract tests, and live credentials and
-  institutional TDM entitlements have not been validated in this staging build.
+  institutional TDM entitlements have not been validated in this prototype.
 - Downloads are bounded at 100 MB per response; archive expansion is bounded at 200 MB and
   2,000 members. Only regular archive entries are read. Nested formats, encrypted files,
   unsupported image formats, complex publisher XML and some relative asset URLs may be missed.

@@ -86,8 +86,8 @@ def coordinates(panel, shape, points):
 def pixel_finding(
     a, b, *, same_image=False, raw_a=None, raw_b=None, proposals_a=None, proposals_b=None
 ):
-    aa = luminance(a.pixels) if raw_a is None else raw_a
-    bb = luminance(b.pixels) if raw_b is None else raw_b
+    aa = luminance(a.pixels, REGION_PARAMETERS["max_image_side"]) if raw_a is None else raw_a
+    bb = luminance(b.pixels, REGION_PARAMETERS["max_image_side"]) if raw_b is None else raw_b
     result = pixel_match(
         aa, bb, same_image=same_image, proposals_a=proposals_a, proposals_b=proposals_b
     )
@@ -99,12 +99,11 @@ def pixel_finding(
         "info" if not same_image and a.work_id == b.work_id else "review",
         [a.work_id] if same_image else [a.work_id, b.work_id],
         [a.artifact_id] if same_image else [a.artifact_id, b.artifact_id],
-        f"Small regions in {'panel ' + a.id if same_image else 'panels ' + a.id + ' and ' + b.id} have correlated pixel structure and fine residuals; consistent with duplication and warrants review.",
+        f"Small regions in {'panel ' + a.id if same_image else 'panels ' + a.id + ' and ' + b.id} have correlated pixel structure and spatial detail; consistent with duplication and warrants review.",
         parameters={
-            "method": "component-pixel-corroboration-v1",
+            "method": "component-pixel-corroboration-v2",
             **REGION_PARAMETERS,
             "texture_support": TEXTURE_PARAMETERS,
-            "max_image_side": 900,
         },
         measurements={
             "category": 3 if same_image else 2,
@@ -115,12 +114,16 @@ def pixel_finding(
             "coordinate_system": "source_points/target_points: normalized unflipped panels; figure_points: original figure pixels",
             "pixel_ncc": result.ncc,
             "residual_ncc": result.residual_ncc,
+            "corroboration": result.mode,
+            "smoothed_ncc": result.smoothed_ncc,
+            "detail_ncc": result.detail_ncc,
+            "template_scale": result.scale,
             "flipped_for_match": result.flipped,
             "panel_ids": [a.id, b.id],
         },
         limitations=[
             "This is a bounded search for dark components on light backgrounds, not a general blot classifier.",
-            "Only translation, horizontal reflection and linear brightness are searched; resizing, rotation, blending and compression can hide small clones.",
+            "Component search preserves native pixels up to a 2400-pixel side and searches translation, horizontal reflection, discrete scales and linear brightness; arbitrary rotation, blending and compression can hide small clones.",
             "Fine residual correlation does not establish intent or biological identity; repeated controls and figure assembly require expert review.",
             "Heuristic texture filtering can exclude legitimate smooth experimental images; absent findings do not establish a clean figure.",
         ],
@@ -215,6 +218,8 @@ def compare(
     raw_b=None,
     proposals_a=None,
     proposals_b=None,
+    pixel_raw_a=None,
+    pixel_raw_b=None,
 ) -> Match | None:
     raw_a = luminance(a.pixels) if raw_a is None else raw_a
     raw_b = luminance(b.pixels) if raw_b is None else raw_b
@@ -276,7 +281,12 @@ def compare(
             best = count, ratio, src, dst, target, flipped, category, coverage_a, coverage_b, matrix
     if best is None:
         return pixel_finding(
-            a, b, raw_a=raw_a, raw_b=raw_b, proposals_a=proposals_a, proposals_b=proposals_b
+            a,
+            b,
+            raw_a=pixel_raw_a,
+            raw_b=pixel_raw_b,
+            proposals_a=proposals_a,
+            proposals_b=proposals_b,
         )
     count, ratio, src, dst, target, flipped, category, ca, cb, matrix = best
     differences = local_differences(aa, target, matrix) if category != 1 else {"localized": False}
@@ -330,7 +340,7 @@ def compare(
 
 
 def copy_move(
-    panel: Panel, *, min_matches=10, cached=None, raw=None, proposals=None
+    panel: Panel, *, min_matches=10, cached=None, raw=None, proposals=None, pixel_raw=None
 ) -> Match | None:
     raw = luminance(panel.pixels) if raw is None else raw
 
@@ -339,8 +349,8 @@ def copy_move(
             panel,
             panel,
             same_image=True,
-            raw_a=raw,
-            raw_b=raw,
+            raw_a=pixel_raw,
+            raw_b=pixel_raw,
             proposals_a=proposals,
             proposals_b=proposals,
         )
@@ -416,15 +426,23 @@ def detect(panels: list[Panel]) -> list[Match]:
     normalized = {}
     flipped = {}
     raw = {}
+    pixel_raw = {}
     proposals = {}
     for p in panels:
         a = gray(p.pixels)
         raw[p.id] = luminance(p.pixels)
-        proposals[p.id] = regions(raw[p.id])
+        pixel_raw[p.id] = luminance(p.pixels, REGION_PARAMETERS["max_image_side"])
+        proposals[p.id] = regions(pixel_raw[p.id])
         cache[p.id] = (hashes(a), *features(a, raw[p.id]))
         normalized[p.id] = a
         flipped[p.id] = features(np.ascontiguousarray(np.fliplr(a)), np.fliplr(raw[p.id]))
-        m = copy_move(p, cached=(a, *cache[p.id][1:]), raw=raw[p.id], proposals=proposals[p.id])
+        m = copy_move(
+            p,
+            cached=(a, *cache[p.id][1:]),
+            raw=raw[p.id],
+            proposals=proposals[p.id],
+            pixel_raw=pixel_raw[p.id],
+        )
         if m:
             results.append(m)
     for a, b in combinations(panels, 2):
@@ -440,6 +458,8 @@ def detect(panels: list[Panel]) -> list[Match]:
             flipped_features_b=flipped[b.id],
             raw_a=raw[a.id],
             raw_b=raw[b.id],
+            pixel_raw_a=pixel_raw[a.id],
+            pixel_raw_b=pixel_raw[b.id],
             proposals_a=proposals[a.id],
             proposals_b=proposals[b.id],
         )

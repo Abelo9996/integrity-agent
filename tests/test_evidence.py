@@ -276,7 +276,7 @@ def test_small_region_evidence_survives_pipeline_and_verifier(tmp_path):
     findings = [
         f
         for f in result["findings"]
-        if f["parameters"].get("method") == "component-pixel-corroboration-v1"
+        if f["parameters"].get("method") == "component-pixel-corroboration-v2"
     ]
     assert findings
     assert not result["verification"]["rejected"]

@@ -116,3 +116,16 @@ def test_small_region_cached_path_agrees():
     cached = next(m for m in detect([a, b]) if m.finding.kind == "image-reuse")
     assert cached.finding == direct.finding
     assert np.array_equal(cached.evidence, direct.evidence)
+
+
+def test_native_compression_localization_and_smooth_negative():
+    from integrity_agent.evaluation import panel
+    from integrity_agent.evaluation_compression import cases, figure, jpeg, localized
+
+    for case in cases(60, "lanes"):
+        if case.name in ("native", "jpeg85", "scaled"):
+            match = copy_move(panel(case.target, "native"))
+            assert localized(match, case)
+            assert match.finding.parameters["max_image_side"] == 2400
+    independent, _ = figure(60, "lanes", twins=True)
+    assert copy_move(panel(jpeg(independent, 85), "negative")) is None

@@ -11,6 +11,7 @@ from PIL import Image
 from scipy.stats import beta
 
 from .detectors.images import Panel, compare, copy_move
+from .evaluation_regions import RegionCase, localized
 
 
 def synthetic_image(seed: int, size=320):
@@ -51,6 +52,7 @@ def evaluate(root: Path, *, seeds=12):
     counts = {str(i): {"tp": 0, "fn": 0} for i in (1, 2, 3)}
     details = {}
     clone_hits = 0
+    clone_localized = 0
     confusion = {str(i): {str(j): 0 for j in (0, 1, 2, 3)} for i in (0, 1, 2, 3)}
     for seed in range(1000, 1000 + seeds):
         a = synthetic_image(seed)
@@ -66,7 +68,13 @@ def evaluate(root: Path, *, seeds=12):
             details[kind]["hits"] += int(hit)
             details[kind]["total"] += 1
             if kind == "cloned-regions":
-                clone_hits += int(copy_move(panel(b, f"clone-{seed}")) is not None)
+                clone_match = copy_move(panel(b, f"clone-{seed}"))
+                clone_hits += int(clone_match is not None)
+                clone_localized += int(
+                    localized(
+                        clone_match, RegionCase(kind, a, b, (30, 30, 90, 90), (180, 180, 90, 90))
+                    )
+                )
     fp = 0
     negative_count = seeds * 5
     copy_fp = 0
@@ -106,6 +114,8 @@ def evaluate(root: Path, *, seeds=12):
         "precision_at_benchmark_mix": sum(c["tp"] for c in counts.values())
         / (sum(c["tp"] for c in counts.values()) + fp),
         "copy_move_recall": clone_hits / seeds,
+        "copy_move_localization_recall": clone_localized / seeds,
+        "copy_move_metric_note": "copy_move_recall is legacy any-signal recall; localization requires four correspondences in both injected regions.",
         "copy_move_false_positives": copy_fp,
         "copy_move_negative_images": negative_count,
         "interpretation": "Categories label injected manipulations. Reuse detection is not correct classification of edits. No claim of clinical sensitivity.",

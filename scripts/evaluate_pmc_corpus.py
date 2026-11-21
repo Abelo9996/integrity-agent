@@ -14,6 +14,7 @@ from scipy.stats import beta
 
 from integrity_agent.detectors.images import compare, copy_move
 from integrity_agent.evaluation import manipulations, panel
+from integrity_agent.evaluation_regions import RegionCase, localized
 
 
 def run(manifest):
@@ -36,6 +37,7 @@ def run(manifest):
         figures[item["id"]] = cv2.resize(square, (320, 320), interpolation=cv2.INTER_AREA)
     confusion = {str(i): {str(j): 0 for j in (0, 1, 2, 3)} for i in (0, 1, 2, 3)}
     copy_hits = 0
+    clone_localized = 0
     unmodified_signals = sum(copy_move(panel(a, ident)) is not None for ident, a in figures.items())
     for ident, a in figures.items():
         for kind, (label, b) in manipulations(a).items():
@@ -43,7 +45,13 @@ def run(manifest):
             prediction = match.finding.measurements["category"] if match else 0
             confusion[str(label)][str(prediction)] += 1
             if kind == "cloned-regions":
-                copy_hits += int(copy_move(panel(b, ident + "-clone")) is not None)
+                clone_match = copy_move(panel(b, ident + "-clone"))
+                copy_hits += int(clone_match is not None)
+                clone_localized += int(
+                    localized(
+                        clone_match, RegionCase(kind, a, b, (30, 30, 90, 90), (180, 180, 90, 90))
+                    )
+                )
     pairs = {tuple(sorted(pair)) for pair in spec["confirmed_negative_pairs"]}
     if any(len(pair) != 2 or pair[0] == pair[1] for pair in pairs):
         raise ValueError("Negative pairs must contain two distinct image IDs")
@@ -79,6 +87,8 @@ def run(manifest):
         "unmodified_images": len(figures),
         "false_positive_rate": 1 - confusion["0"]["0"] / negatives,
         "copy_move_recall": copy_hits / len(figures),
+        "copy_move_localization_recall": clone_localized / len(figures),
+        "copy_move_metric_note": "copy_move_recall is legacy any-signal recall; localization requires four correspondences in both injected regions.",
         "normalization": "central square crop resized to 320px",
     }
     target = Path("outputs/pmc-evaluation")

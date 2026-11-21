@@ -1,0 +1,381 @@
+{
+  "status": "experimental iteration; not independently validated",
+  "baseline_commit": "d2faf5a",
+  "fixture_freeze_commit": "d650474",
+  "detector_freeze_commit": "31cf89b",
+  "development_seeds": [
+    20,
+    21,
+    22,
+    23
+  ],
+  "heldout_baseline": {
+    "dataset": "procedural small bands and shared typography; not biomedical validation",
+    "seeds": [
+      3000,
+      3001,
+      3002,
+      3003,
+      3004,
+      3005,
+      3006,
+      3007,
+      3008,
+      3009,
+      3010,
+      3011,
+      3012,
+      3013,
+      3014,
+      3015,
+      3016,
+      3017,
+      3018,
+      3019
+    ],
+    "positives": {
+      "copy": {
+        "detected": 2,
+        "localized": 0,
+        "total": 20
+      },
+      "flip": {
+        "detected": 2,
+        "localized": 0,
+        "total": 20
+      },
+      "contrast": {
+        "detected": 2,
+        "localized": 0,
+        "total": 20
+      },
+      "jpeg": {
+        "detected": 0,
+        "localized": 0,
+        "total": 20
+      },
+      "cross-paper": {
+        "detected": 20,
+        "localized": 0,
+        "total": 20
+      }
+    },
+    "negatives": {
+      "independent-bands": {
+        "signals": 2,
+        "total": 20
+      },
+      "shared-annotations": {
+        "signals": 20,
+        "total": 20
+      },
+      "table-self": {
+        "signals": 3,
+        "total": 20
+      },
+      "table-pair": {
+        "signals": 20,
+        "total": 20
+      },
+      "plot-self": {
+        "signals": 11,
+        "total": 20
+      },
+      "plot-pair": {
+        "signals": 20,
+        "total": 20
+      }
+    },
+    "localization_rule": "At least four correspondence points must lie in both known injected regions; a figure-level flag is insufficient.",
+    "caveat": "Fixtures share layout templates; counts do not establish population sensitivity or specificity.",
+    "detector_sha256": "7853e23895c6da52273e09edb14866244f1f48c71e1d77dba36af484265c7253",
+    "fixtures_sha256": "6a316eaac88049433ede3f9a4818bddeb9cba1b756e7c75dabf155ca6900609b",
+    "legacy_coordinate_capture": true
+  },
+  "heldout_candidate": {
+    "dataset": "procedural small bands and shared typography; not biomedical validation",
+    "seeds": [
+      3000,
+      3001,
+      3002,
+      3003,
+      3004,
+      3005,
+      3006,
+      3007,
+      3008,
+      3009,
+      3010,
+      3011,
+      3012,
+      3013,
+      3014,
+      3015,
+      3016,
+      3017,
+      3018,
+      3019
+    ],
+    "positives": {
+      "copy": {
+        "detected": 19,
+        "localized": 19,
+        "total": 20
+      },
+      "flip": {
+        "detected": 19,
+        "localized": 19,
+        "total": 20
+      },
+      "contrast": {
+        "detected": 19,
+        "localized": 19,
+        "total": 20
+      },
+      "jpeg": {
+        "detected": 5,
+        "localized": 5,
+        "total": 20
+      },
+      "cross-paper": {
+        "detected": 19,
+        "localized": 19,
+        "total": 20
+      }
+    },
+    "negatives": {
+      "independent-bands": {
+        "signals": 0,
+        "total": 20
+      },
+      "shared-annotations": {
+        "signals": 0,
+        "total": 20
+      },
+      "table-self": {
+        "signals": 0,
+        "total": 20
+      },
+      "table-pair": {
+        "signals": 0,
+        "total": 20
+      },
+      "plot-self": {
+        "signals": 0,
+        "total": 20
+      },
+      "plot-pair": {
+        "signals": 0,
+        "total": 20
+      }
+    },
+    "localization_rule": "At least four correspondence points must lie in both known injected regions; a figure-level flag is insufficient.",
+    "caveat": "Fixtures share layout templates; counts do not establish population sensitivity or specificity.",
+    "detector_sha256": "867cf9d19e551c06acc4f9c87c416eda736aa010d53360e7411705cf06b5fa63",
+    "region_detector_sha256": "b11f5322c8d7a185b9010674d69fbc389b62b8adaeea48cf542d9e6db896e296",
+    "fixtures_sha256": "6a316eaac88049433ede3f9a4818bddeb9cba1b756e7c75dabf155ca6900609b"
+  },
+  "licensed_regression": {
+    "source_count": 11,
+    "categories": {
+      "1": {
+        "detection_recall": 1.0,
+        "classification_recall": 1.0,
+        "classification_precision": 1.0
+      },
+      "2": {
+        "detection_recall": 0.9272727272727272,
+        "classification_recall": 0.8727272727272727,
+        "classification_precision": 1.0
+      },
+      "3": {
+        "detection_recall": 1.0,
+        "classification_recall": 1.0,
+        "classification_precision": 0.88
+      }
+    },
+    "confusion_actual_by_predicted": {
+      "0": {
+        "0": 35,
+        "1": 0,
+        "2": 0,
+        "3": 0
+      },
+      "1": {
+        "0": 0,
+        "1": 11,
+        "2": 0,
+        "3": 0
+      },
+      "2": {
+        "0": 4,
+        "1": 0,
+        "2": 48,
+        "3": 3
+      },
+      "3": {
+        "0": 0,
+        "1": 0,
+        "2": 0,
+        "3": 22
+      }
+    },
+    "negative_pairs": 35,
+    "false_positives": 0,
+    "negative_pair_fpr_95pct_upper": 0.10003243557210503,
+    "interval_note": "Descriptive binomial bound only; shared source images make pairs dependent.",
+    "negative_review": {
+      "method": "Assistant visual inspection of the 11-image contact sheet; different articles and visibly different image content",
+      "independent_human_review": false
+    },
+    "unmodified_copy_move_signals": 4,
+    "unmodified_images": 11,
+    "false_positive_rate": 0.0,
+    "copy_move_recall": 0.7272727272727273,
+    "normalization": "central square crop resized to 320px"
+  },
+  "procedural_regression": {
+    "dataset": "procedural textured figures, seeds 1000+; no biomedical generalization",
+    "categories": {
+      "1": {
+        "tp": 20,
+        "fn": 0,
+        "recall": 1.0
+      },
+      "2": {
+        "tp": 100,
+        "fn": 0,
+        "recall": 1.0
+      },
+      "3": {
+        "tp": 40,
+        "fn": 0,
+        "recall": 1.0
+      }
+    },
+    "classification": {
+      "1": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "correct": 20,
+        "predicted": 20,
+        "actual": 20
+      },
+      "2": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "correct": 100,
+        "predicted": 100,
+        "actual": 100
+      },
+      "3": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "correct": 40,
+        "predicted": 40,
+        "actual": 40
+      }
+    },
+    "confusion_actual_by_predicted": {
+      "0": {
+        "0": 100,
+        "1": 0,
+        "2": 0,
+        "3": 0
+      },
+      "1": {
+        "0": 0,
+        "1": 20,
+        "2": 0,
+        "3": 0
+      },
+      "2": {
+        "0": 0,
+        "1": 0,
+        "2": 100,
+        "3": 0
+      },
+      "3": {
+        "0": 0,
+        "1": 0,
+        "2": 0,
+        "3": 40
+      }
+    },
+    "manipulations": {
+      "duplicate": {
+        "hits": 20,
+        "total": 20
+      },
+      "crop": {
+        "hits": 20,
+        "total": 20
+      },
+      "rotate": {
+        "hits": 20,
+        "total": 20
+      },
+      "flip": {
+        "hits": 20,
+        "total": 20
+      },
+      "scale": {
+        "hits": 20,
+        "total": 20
+      },
+      "contrast": {
+        "hits": 20,
+        "total": 20
+      },
+      "cloned-regions": {
+        "hits": 20,
+        "total": 20
+      },
+      "edited-features": {
+        "hits": 20,
+        "total": 20
+      }
+    },
+    "false_positives": 0,
+    "negative_pairs": 100,
+    "false_positive_rate": 0.0,
+    "false_positive_rate_95pct_upper": 0.03621669264517641,
+    "precision_at_benchmark_mix": 1.0,
+    "copy_move_recall": 1.0,
+    "copy_move_false_positives": 0,
+    "copy_move_negative_images": 100,
+    "interpretation": "Categories label injected manipulations. Reuse detection is not correct classification of edits. No claim of clinical sensitivity."
+  },
+  "clone_localization_audit": {
+    "licensed": {
+      "baseline": {
+        "signals": 9,
+        "localized": 8,
+        "total": 11
+      },
+      "candidate": {
+        "signals": 8,
+        "localized": 8,
+        "total": 11
+      }
+    },
+    "procedural": {
+      "baseline": {
+        "signals": 20,
+        "localized": 20,
+        "total": 20
+      },
+      "candidate": {
+        "signals": 20,
+        "localized": 20,
+        "total": 20
+      }
+    }
+  },
+  "limitations": [
+    "Parameters were frozen before held-out and licensed regression results; no private-subject tuning or rerun in this iteration.",
+    "Seed holdout shares generator layouts, not an independent clinical distribution.",
+    "The licensed convenience corpus is reused regression data; negative labels were assistant-reviewed, not independently adjudicated.",
+    "JPEG localization and licensed paired-transform detection regressions remain explicit; this is not a claim of reliable screening."
+  ]
+}

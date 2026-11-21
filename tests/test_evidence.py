@@ -73,6 +73,48 @@ def test_demo_end_to_end(tmp_path, monkeypatch):
             assert (Path("outputs/demo") / path).exists()
 
 
+def test_small_region_evidence_survives_pipeline_and_verifier(tmp_path):
+    import io
+    from unittest.mock import Mock
+
+    from PIL import Image
+
+    from integrity_agent.acquisition import Collector
+    from integrity_agent.evaluation_regions import region_cases
+    from integrity_agent.pipeline import analyze
+
+    case = region_cases(20)[-1]
+    author = Author(id="synthetic", name="Synthetic")
+    works = [Work(id=f"w{i}", title=f"Synthetic bands {i}", author_id=author.id) for i in (0, 1)]
+    collector = Collector(Mock(), tmp_path / "data")
+    for work, pixels in zip(works, (case.source, case.target), strict=True):
+        stream = io.BytesIO()
+        Image.fromarray(pixels).save(stream, format="PNG")
+        collector.save(
+            work,
+            stream.getvalue(),
+            "synthetic",
+            f"https://example.org/{work.id}.png",
+            work.id,
+            "CC0",
+            ".png",
+        )
+    output = tmp_path / "report"
+    result = analyze(collector, author, works, output, network=False)
+    findings = [
+        f
+        for f in result["findings"]
+        if f["parameters"].get("method") == "component-pixel-corroboration-v1"
+    ]
+    assert findings
+    assert not result["verification"]["rejected"]
+    for f in findings:
+        assert f["measurements"]["source_figure_points"]
+        assert f["measurements"]["target_figure_points"]
+        assert all((output / name).is_file() for name in f["evidence_files"])
+    assert (output / "report.html").is_file()
+
+
 def test_limited_run_displays_scope_before_paper_results(tmp_path):
     author = Author(id="synthetic", name="Synthetic", works_count=100)
     note = "Explicit limit: analyzed 1 of 100 indexed works"

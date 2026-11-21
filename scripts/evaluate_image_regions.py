@@ -66,6 +66,34 @@ def run(detector, seeds):
     }
 
 
+def capture_legacy_coordinates(detector):
+    """Observe the old detector's overlay points without changing match decisions.
+
+    Old paired findings omitted coordinates from JSON. Missing metadata must not
+    be misreported as a localization failure; score the geometry it actually drew.
+    """
+    original_compare, original_overlay = detector.compare, detector.overlay
+    captured = {}
+
+    def overlay(a, b, src, dst):
+        captured.update(source=src.copy(), target=dst.copy(), width=b.shape[1])
+        return original_overlay(a, b, src, dst)
+
+    def compare(a, b, **kwargs):
+        captured.clear()
+        result = original_compare(a, b, **kwargs)
+        if result is not None and "source_points" not in result.finding.measurements:
+            target = captured["target"]
+            if result.finding.measurements.get("flipped_for_match"):
+                target = target * [-1, 1] + [captured["width"] - 1, 0]
+            result.finding.measurements.update(
+                source_points=captured["source"].tolist(), target_points=target.tolist()
+            )
+        return result
+
+    detector.overlay, detector.compare = overlay, compare
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--development", action="store_true")
@@ -79,6 +107,7 @@ if __name__ == "__main__":
         detector = importlib.util.module_from_spec(spec)
         sys.modules[name] = detector
         spec.loader.exec_module(detector)
+        capture_legacy_coordinates(detector)
     result = run(detector, range(20, 24) if args.development else range(3000, 3020))
     source = Path(detector.__file__)
     result["detector_sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
@@ -89,6 +118,7 @@ if __name__ == "__main__":
     result["fixtures_sha256"] = hashlib.sha256(
         Path("src/integrity_agent/evaluation_regions.py").read_bytes()
     ).hexdigest()
+    result["legacy_coordinate_capture"] = bool(args.baseline)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2) + "\n")
     print(json.dumps(result, indent=2))

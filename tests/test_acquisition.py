@@ -50,6 +50,27 @@ def test_size_limit(tmp_path, monkeypatch):
     t.close()
 
 
+def test_shared_cache_coordinates_host_pacing(tmp_path, monkeypatch):
+    import integrity_agent.transport as transport
+
+    sleeps = []
+    monkeypatch.setattr(transport.time, "time", lambda: 1000.0)
+    monkeypatch.setattr(transport.time, "sleep", lambda delay: sleeps.append(delay))
+    clients = [Transport(tmp_path, "reviewer@synthetic.invalid", interval=1) for _ in range(2)]
+    try:
+        clients[0]._pace("example.org")
+        clients[1]._pace("example.org")
+        clients[1]._pace("example.net")
+        assert sleeps == [0, 1, 0]
+        clients[0].interval = 5
+        clients[0]._pace("example.org")
+        clients[1]._pace("example.org")
+        assert sleeps[-2:] == [6, 11]
+    finally:
+        for client in clients:
+            client.close()
+
+
 def test_robots_denial(tmp_path, monkeypatch):
     monkeypatch.setattr(Transport, "validate_url", lambda self, url: None)
     t = Transport(

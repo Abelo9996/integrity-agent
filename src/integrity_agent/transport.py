@@ -29,6 +29,10 @@ class Transport:
         self.db.execute(
             "CREATE TABLE IF NOT EXISTS response (key TEXT PRIMARY KEY, path TEXT, retrieved REAL)"
         )
+        self.db.execute(
+            "CREATE TABLE IF NOT EXISTS request_slot "
+            "(host TEXT PRIMARY KEY, next_start REAL, interval REAL)"
+        )
         self.client = client or httpx.Client(
             timeout=60,
             follow_redirects=False,
@@ -36,12 +40,34 @@ class Transport:
         )
         self.email = email
         self.interval = interval
-        self.last: dict[str, float] = {}
         self.robots: dict[str, RobotFileParser] = {}
 
     def close(self):
         self.client.close()
         self.db.close()
+
+    def _pace(self, host: str):
+        """Reserve a host slot across processes sharing this cache directory."""
+        interval = max(
+            self.interval, 3.1 if "arxiv.org" in host else 10.1 if host == "api.wiley.com" else 0
+        )
+        now = time.time()
+        try:
+            self.db.execute("BEGIN IMMEDIATE")
+            row = self.db.execute(
+                "SELECT next_start, interval FROM request_slot WHERE host=?", (host,)
+            ).fetchone()
+            interval = max(interval, row[1]) if row else interval
+            start = max(now, row[0] - row[1] + interval) if row else now
+            self.db.execute(
+                "INSERT OR REPLACE INTO request_slot VALUES (?, ?, ?)",
+                (host, start + interval, interval),
+            )
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+        time.sleep(max(0, start - time.time()))
 
     @staticmethod
     def validate_url(url: str):
@@ -63,12 +89,8 @@ class Transport:
 
     def _request(self, url: str, headers: dict, limit: int) -> bytes:
         host = urlsplit(url).hostname or ""
-        pace = max(
-            self.interval, 3.1 if "arxiv.org" in host else 10.1 if host == "api.wiley.com" else 0
-        )
         for attempt in range(4):
-            time.sleep(max(0, self.last.get(host, 0) + pace - time.monotonic()))
-            self.last[host] = time.monotonic()
+            self._pace(host)
             with self.client.stream("GET", url, headers=headers) as response:
                 if response.status_code in (429, 500, 502, 503, 504):
                     retry = response.headers.get("Retry-After", "")
@@ -132,12 +154,7 @@ class Transport:
             if download:
                 self._allowed(current)
             host = urlsplit(current).hostname or ""
-            pace = max(
-                self.interval,
-                3.1 if "arxiv.org" in host else 10.1 if host == "api.wiley.com" else 0,
-            )
-            time.sleep(max(0, self.last.get(host, 0) + pace - time.monotonic()))
-            self.last[host] = time.monotonic()
+            self._pace(host)
             # Probe with streamed GET, reuse body; do not issue HEAD (often unsupported).
             with self.client.stream("GET", current, headers=req_headers) as response:
                 if response.is_redirect:

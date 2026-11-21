@@ -82,6 +82,10 @@ if __name__ == "__main__":
     result = run(detector, range(20, 24) if args.development else range(3000, 3020))
     source = Path(detector.__file__)
     result["detector_sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
+    if not args.baseline:
+        result["region_detector_sha256"] = hashlib.sha256(
+            Path("src/integrity_agent/detectors/image_regions.py").read_bytes()
+        ).hexdigest()
     result["fixtures_sha256"] = hashlib.sha256(
         Path("src/integrity_agent/evaluation_regions.py").read_bytes()
     ).hexdigest()

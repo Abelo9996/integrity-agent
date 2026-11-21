@@ -47,3 +47,14 @@ URLs. The S3 adapter accepts the OA subset and explicitly marked `TDM` author ma
 preserves the source license, and retrieves any listed PDF after XML and media. It does not
 infer permission to redistribute manuscripts. Text-only XML does not suppress PDF fallback;
 Unpaywall copies are tried independently so a failed location cannot hide another legal copy.
+
+Follow-up acquisition audit: each listed PMC asset is attempted independently, so a missing
+XML or supplement cannot hide remaining images. Supplement ZIP availability alone does not
+suppress PDF fallback. When no image/PDF is acquired, a final OpenAlex singleton lookup
+revalidates work ID, author membership and DOI, then tries only direct `pdf_url` entries
+explicitly marked `is_oa=true`, preserving each location's license and metadata parent.
+See the current [location contract](https://help.openalex.org/data/locations/).
+This downloads the source host's OA PDF through the robots-aware transport; it does not
+use the metered OpenAlex cached-content API, scrape landing pages or guess asset names.
+Offline tests cover mismatched identifiers, closed locations, failed copies and provenance;
+no new private-cohort coverage improvement is asserted without a rerun.

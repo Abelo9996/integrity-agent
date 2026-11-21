@@ -279,19 +279,24 @@ class Collector:
             for url in filter(None, urls):
                 if url.startswith("s3://pmc-oa-opendata/"):
                     url = base + url.removeprefix("s3://pmc-oa-opendata/")
-                if urlsplit(url).hostname != "pmc-oa-opendata.s3.amazonaws.com":
-                    raise ValueError("Unexpected PMC media host")
-                suffix = Path(urlsplit(url).path).suffix.lower() or ".bin"
-                self.save(
-                    w,
-                    self.http.get(url, ttl=30 * 86400),
-                    "pmc",
-                    url,
-                    w.pmcid,
-                    license,
-                    suffix,
-                    parent=parent,
-                )
+
+                def acquire_asset(url=url, parent=parent, license=license):
+                    if urlsplit(url).hostname != "pmc-oa-opendata.s3.amazonaws.com":
+                        raise ValueError("Unexpected PMC media host")
+                    suffix = Path(urlsplit(url).path).suffix.lower() or ".bin"
+                    self.save(
+                        w,
+                        self.http.get(url, ttl=30 * 86400),
+                        "pmc",
+                        url,
+                        w.pmcid,
+                        license,
+                        suffix,
+                        parent=parent,
+                    )
+
+                # A missing XML, supplement or image must not hide the other listed media.
+                self.attempt(w, "pmc-asset", acquire_asset)
 
     def europe(self, w, *, identify=False):
         base = "https://www.ebi.ac.uk/europepmc/webservices/rest"
@@ -376,12 +381,15 @@ class Collector:
                 ".tar.gz",
             )
 
-    def unpaywall(self, w):
-        if not w.doi or any(
+    def has_visual_artifact(self, w):
+        return any(
             a.work_id == w.id
-            and Path(a.path).suffix.lower() in {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".zip"}
+            and Path(a.path).suffix.lower() in {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".pdf"}
             for a in self.artifacts
-        ):
+        )
+
+    def unpaywall(self, w):
+        if not w.doi or self.has_visual_artifact(w):
             return
         url = f"https://api.unpaywall.org/v2/{w.doi}"
         raw = self.http.get(url, params={"email": self.http.email})
@@ -412,6 +420,62 @@ class Collector:
 
                 self.attempt(w, "unpaywall-copy", acquire_copy)
 
+    def openalex_pdf(self, w):
+        """Last-resort host PDFs from an exact, revalidated OpenAlex work record.
+
+        No cached-content purchase, guessed asset URL or landing-page scraping.
+        """
+        if self.has_visual_artifact(w):
+            return
+        ident = w.id.rsplit("/", 1)[-1]
+        if not re.fullmatch(r"W\d+", ident):
+            return
+        url = f"https://api.openalex.org/works/{ident}"
+        raw = self.http.get(url, headers=openalex_headers())
+        meta = json.loads(raw)
+        if not isinstance(meta, dict) or str(meta.get("id") or "").rsplit("/", 1)[-1] != ident:
+            raise ValueError("OpenAlex PDF work identifier mismatch")
+        if not any(
+            str((row.get("author") or {}).get("id") or "").rsplit("/", 1)[-1]
+            == w.author_id.rsplit("/", 1)[-1]
+            for row in (meta.get("authorships") or [])
+            if isinstance(row, dict)
+        ):
+            raise ValueError("OpenAlex PDF author link could not be confirmed")
+        if w.doi and meta.get("doi") and doi(meta["doi"]) != w.doi:
+            raise ValueError("OpenAlex PDF DOI disagrees with resolved work")
+        parent = self.save(w, raw, "openalex-oa", url, w.id, "CC0 (OpenAlex metadata)", ".json")
+        seen = set()
+        for loc in meta.get("locations") or []:
+            if not isinstance(loc, dict):
+                continue
+            pdf = loc.get("pdf_url")
+            if loc.get("is_oa") is not True or not isinstance(pdf, str) or not pdf:
+                continue
+            if pdf.startswith("http://"):
+                pdf = "https://" + pdf.removeprefix("http://")
+            if pdf in seen:
+                continue
+            seen.add(pdf)
+
+            def acquire_copy(pdf=pdf, loc=loc):
+                content = self.http.get(pdf, download=True)
+                if not content.startswith(b"%PDF"):
+                    raise ValueError("OpenAlex OA location did not return a PDF")
+                self.save(
+                    w,
+                    content,
+                    "openalex-oa",
+                    pdf,
+                    w.id,
+                    loc.get("license") or "OA access; reuse license unspecified",
+                    ".pdf",
+                    parent=parent,
+                    relation="exact OpenAlex work OA location",
+                )
+
+            self.attempt(w, "openalex-oa-copy", acquire_copy)
+
     def crossref(self, w):
         if w.doi:
             url = f"https://api.crossref.org/works/{quote(w.doi, safe='')}"
@@ -428,6 +492,7 @@ class Collector:
             ("preprints", self.preprints),
             ("arxiv", self.arxiv),
             ("unpaywall", self.unpaywall),
+            ("openalex-oa", self.openalex_pdf),
             ("crossref", self.crossref),
         ]:
             self.attempt(w, source, lambda fn=fn: fn(w))

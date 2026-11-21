@@ -276,6 +276,95 @@ def test_pmc_explicit_tdm_manuscript_and_pdf_are_retained(tmp_path):
     assert c.artifacts[-1].path.endswith(".pdf")
 
 
+def test_missing_pmc_asset_does_not_hide_later_media(tmp_path):
+    http = Mock()
+    base = "https://pmc-oa-opendata.s3.amazonaws.com/"
+    meta = {
+        "pmcid": "PMC999999999",
+        "is_pmc_openaccess": True,
+        "license_code": "CC BY",
+        "xml_url": base + "PMC999999999.1/paper.xml",
+        "media_urls": [base + "PMC999999999.1/missing.jpg", base + "PMC999999999.1/available.jpg"],
+    }
+    http.get.side_effect = [
+        b"<ListBucketResult><Contents><Key>metadata/PMC999999999.1.json</Key></Contents></ListBucketResult>",
+        json.dumps(meta).encode(),
+        AccessError("missing XML"),
+        AccessError("missing image"),
+        b"synthetic-image",
+    ]
+    c = Collector(http, tmp_path)
+    c.pmc(Work(id="W1", title="Synthetic", author_id="A1", pmcid="PMC999999999"))
+    assert len(c.artifacts) == 2
+    assert c.artifacts[-1].url.endswith("available.jpg")
+    assert [row.status for row in c.coverage] == ["failed", "failed", "ok"]
+
+
+def test_supplement_zip_does_not_suppress_pdf_fallback(tmp_path):
+    http = Mock()
+    http.get.side_effect = [
+        json.dumps(
+            {
+                "doi": "10.synthetic/paper",
+                "oa_locations": [{"url_for_pdf": "https://example.org/paper.pdf"}],
+            }
+        ).encode(),
+        b"%PDF-synthetic",
+    ]
+    c = Collector(http, tmp_path)
+    w = Work(id="W1", title="Synthetic", author_id="A1", doi="10.synthetic/paper")
+    c.save(w, b"supplement", "europe-pmc", "https://example.org/supplement", w.id, "CC0", ".zip")
+    c.unpaywall(w)
+    assert c.artifacts[-1].path.endswith(".pdf")
+
+
+def test_openalex_pdf_requires_oa_and_records_exact_parent(tmp_path):
+    http = Mock()
+    metadata = {
+        "id": "https://openalex.org/W1",
+        "authorships": [{"author": None}, {"author": {"id": "https://openalex.org/A1"}}],
+        "locations": [
+            {"is_oa": False, "pdf_url": "https://example.org/paywall.pdf"},
+            {"is_oa": True, "pdf_url": "https://example.org/blocked.pdf"},
+            {"is_oa": True, "pdf_url": "http://example.org/open.pdf", "license": "cc-by"},
+        ],
+    }
+    http.get.side_effect = [
+        json.dumps(metadata).encode(),
+        AccessError("robots denies access"),
+        b"%PDF-synthetic",
+    ]
+    c = Collector(http, tmp_path)
+    c.openalex_pdf(Work(id="W1", title="Synthetic", author_id="A1"))
+    assert len(c.artifacts) == 2
+    artifact = c.artifacts[-1]
+    assert artifact.url == "https://example.org/open.pdf"
+    assert artifact.parent_artifact_id == c.artifacts[0].artifact_id
+    assert artifact.linking_identifier == "W1"
+    assert artifact.license == "cc-by"
+    assert http.get.call_args.kwargs == {"download": True}
+    assert not any("paywall.pdf" in call.args[0] for call in http.get.call_args_list)
+    assert [row.status for row in c.coverage] == ["failed", "ok"]
+
+
+@pytest.mark.parametrize(
+    "record",
+    [
+        {"id": "W2", "authorships": [{"author": {"id": "A1"}}]},
+        {"id": "W1", "authorships": [{"author": {"id": "A2"}}]},
+        {"id": "W1", "doi": "10.synthetic/wrong", "authorships": [{"author": {"id": "A1"}}]},
+    ],
+)
+def test_openalex_pdf_rejects_mismatched_links(tmp_path, record):
+    http = Mock()
+    http.get.return_value = json.dumps(record).encode()
+    c = Collector(http, tmp_path)
+    with pytest.raises(ValueError):
+        c.openalex_pdf(Work(id="W1", title="Synthetic", author_id="A1", doi="10.synthetic/paper"))
+    assert not c.artifacts
+    assert http.get.call_count == 1
+
+
 def test_zenodo_doi_link_retains_paper_provenance(tmp_path):
     from integrity_agent.repositories import linked_repository
 

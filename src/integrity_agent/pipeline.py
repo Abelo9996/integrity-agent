@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -309,6 +310,10 @@ def analyze(
         filename = "evidence/" + match.finding.id + ".png"
         Image.fromarray(match.evidence).save(output / filename)
         match.finding.evidence_files.append(filename)
+        with (output / filename).open("rb") as evidence:
+            match.finding.evidence_sha256[filename] = hashlib.file_digest(
+                evidence, "sha256"
+            ).hexdigest()
         findings.append(match.finding)
     if detector_plan["D6"]:
         findings.extend(text.detect(sections))

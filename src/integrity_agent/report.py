@@ -5,9 +5,10 @@ from __future__ import annotations
 import hashlib
 import html
 import json
+import re
 from collections import Counter
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 from .agent import REVIEW_QUESTIONS
 from .models import FOOTER, Artifact, Author, Claim, Coverage, Finding, Work
@@ -21,22 +22,105 @@ def claims_from_findings(findings: list[Finding]) -> list[Claim]:
 
 
 def verify(claims: list[Claim], findings: list[Finding], artifacts: list[Artifact]):
+    """Validate unique references and exact detector text; file checks follow at rendering."""
     indexed = {f.id: f for f in findings}
     known = {a.artifact_id: a for a in artifacts}
+    finding_counts = Counter(f.id for f in findings)
+    artifact_counts = Counter(a.artifact_id for a in artifacts)
+    claim_counts = Counter(c.finding_id for c in claims)
     accepted, rejected = [], []
     for claim in claims:
         f = indexed.get(claim.finding_id)
         reason = None
         if f is None:
             reason = "unknown finding ID"
+        elif finding_counts[f.id] != 1:
+            reason = "ambiguous duplicate finding ID"
+        elif claim_counts[f.id] != 1:
+            reason = "duplicate claims for finding ID"
         elif claim.text != f.statement or claim.tier != f.tier:
             reason = "claim differs from detector output"
         elif set(claim.artifact_ids) != set(f.artifact_ids):
             reason = "artifact references differ from detector output"
         elif any(a not in known for a in f.artifact_ids):
             reason = "unknown artifact ID"
+        elif any(artifact_counts[a] != 1 for a in f.artifact_ids):
+            reason = "ambiguous duplicate artifact ID"
         elif set(f.work_ids) != {known[a].work_id for a in f.artifact_ids}:
             reason = "work/artifact association mismatch"
+        elif f.detector == "D1" and f.kind in ("image-reuse", "copy-move") and not f.evidence_files:
+            reason = "image finding lacks evidence files"
+        elif len(f.evidence_files) != len(set(f.evidence_files)):
+            reason = "duplicate evidence file references"
+        elif set(f.evidence_files) != set(f.evidence_sha256):
+            reason = "evidence file/digest references differ"
+        elif any(
+            not re.fullmatch(r"[a-f0-9]{64}", digest) for digest in f.evidence_sha256.values()
+        ):
+            reason = "invalid evidence SHA-256"
+        elif any(not safe_evidence_path(path) for path in f.evidence_files):
+            reason = "unsafe evidence path"
+        if reason:
+            rejected.append({"finding_id": claim.finding_id, "reason": reason})
+        else:
+            accepted.append(claim)
+    return accepted, rejected
+
+
+def safe_evidence_path(value: str) -> bool:
+    """Canonical relative paths whose filesystem and browser interpretation agree."""
+    p = Path(value)
+    return bool(
+        not p.is_absolute()
+        and len(p.parts) >= 2
+        and p.parts[0] == "evidence"
+        and ".." not in p.parts
+        and p.as_posix() == value
+        and not any(c in value for c in "\\%?#")
+        and all(ord(c) >= 32 for c in value)
+    )
+
+
+def verify_files(
+    root: Path, claims: list[Claim], findings: list[Finding], artifacts: list[Artifact]
+):
+    """Validate bytes for structurally accepted claims, failing closed on evidence gaps."""
+    indexed = {f.id: f for f in findings}
+    known = {a.artifact_id: a for a in artifacts}
+    cache: dict[Path, str | None] = {}
+    evidence_root = root.resolve() / "evidence"
+
+    def digest(path: Path):
+        if path not in cache:
+            try:
+                if not path.is_file():
+                    cache[path] = None
+                else:
+                    with path.open("rb") as stream:
+                        cache[path] = hashlib.file_digest(stream, "sha256").hexdigest()
+            except (OSError, ValueError):
+                cache[path] = None
+        return cache[path]
+
+    accepted, rejected = [], []
+    for claim in claims:
+        f = indexed[claim.finding_id]
+        reason = None
+        if any(digest(Path(known[a].path)) != known[a].sha256 for a in claim.artifact_ids):
+            reason = "artifact file absent or SHA-256 mismatch"
+        else:
+            for name in f.evidence_files:
+                try:
+                    path = (root / name).resolve(strict=True)
+                except (OSError, ValueError, RuntimeError):
+                    reason = "evidence file absent or unreadable"
+                    break
+                if not path.is_relative_to(evidence_root):
+                    reason = "evidence resolves outside report evidence directory"
+                    break
+                if digest(path) != f.evidence_sha256[name]:
+                    reason = "evidence file absent or SHA-256 mismatch"
+                    break
         if reason:
             rejected.append({"finding_id": claim.finding_id, "reason": reason})
         else:
@@ -63,20 +147,8 @@ def write_report(
     accepted, rejected = verify(
         claims if claims is not None else claims_from_findings(findings), findings, artifacts
     )
-    invalid_files = set()
-    for artifact in artifacts:
-        path = Path(artifact.path)
-        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != artifact.sha256:
-            invalid_files.add(artifact.artifact_id)
-    for claim in list(accepted):
-        if invalid_files.intersection(claim.artifact_ids):
-            accepted.remove(claim)
-            rejected.append(
-                {
-                    "finding_id": claim.finding_id,
-                    "reason": "artifact file absent or SHA-256 mismatch",
-                }
-            )
+    accepted, file_rejections = verify_files(root, accepted, findings, artifacts)
+    rejected.extend(file_rejections)
     accepted_ids = {c.finding_id for c in accepted}
     verified = [f for f in findings if f.id in accepted_ids]
     strong = {w for f in verified if f.tier == "strong" for w in f.work_ids}
@@ -98,7 +170,7 @@ def write_report(
         "artifacts_collected": len(artifacts),
     }
     report = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "author": author.model_dump(mode="json"),
         "summary": summary,
         "works": [w.model_dump(mode="json") for w in works],
@@ -125,6 +197,14 @@ def write_report(
             "<aside><h2>Scope of this run</h2><ul>"
             + "".join(f"<li>{esc(note)}</li>" for note in scope_notes)
             + "</ul></aside>"
+        )
+    if rejected:
+        reasons = Counter(item["reason"] for item in rejected)
+        body.append(
+            f"<aside><h2>Verification gaps</h2><p>{len(rejected)} claims were excluded. "
+            "Review these errors before interpreting this report.</p><ul>"
+            + "".join(f"<li>{esc(reason)}: {count}</li>" for reason, count in reasons.items())
+            + '</ul><p><a href="verifier-log.json">Verification log with finding IDs</a></p></aside>'
         )
     body.extend(
         [
@@ -156,11 +236,8 @@ def write_report(
                 + "</pre></details>"
             )
             for evidence in f.evidence_files:
-                p = Path(evidence)
-                if p.is_absolute() or ".." in p.parts or not str(p).startswith("evidence/"):
-                    continue
                 body.append(
-                    f'<img src="{esc(evidence, quote=True)}" alt="Detector matching evidence">'
+                    f'<img src="{esc(quote(evidence, safe="/"), quote=True)}" alt="Detector matching evidence">'
                 )
             for a in artifacts:
                 if a.artifact_id in f.artifact_ids:

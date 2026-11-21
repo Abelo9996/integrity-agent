@@ -28,7 +28,7 @@ report statements come from deterministic tool results. A verifier checks statem
 artifact and work associations, and input file SHA-256 before claims reach reports. No
 individual run output is saved in source files; private outputs stay in ignored folders.
 
-Verification includes 78 offline tests, Ruff lint/format and light mypy checks.
+Verification includes 96 offline tests, Ruff lint/format and light mypy checks.
 Tests prohibit real HTTP calls; CI runs the suite on Python 3.11 and 3.12.
 PyMuPDF emits upstream SWIG deprecation warnings during its test. The demo
 evidence image was visually inspected. A source/config/docs credential-pattern scan
@@ -45,3 +45,9 @@ independently human-adjudicated, and private reports were not rerun for this ite
 Source images, manifests and person-specific candidate metadata are kept in ignored
 runtime folders; only benchmark source citations and aggregate synthetic-manipulation
 metrics are included in the repository.
+
+The subsequent verifier update adds schema 1.1, unique finding/artifact/claim references,
+creation-time evidence hashes and resolved-path confinement. Synthetic regressions reproduce
+the previous duplicate-ID rendering error and missing-overlay acceptance, then verify that
+claims are rejected. Private reports and image detector thresholds remain unchanged; see
+[the verification contract and next priorities](EVIDENCE_VERIFICATION.md).

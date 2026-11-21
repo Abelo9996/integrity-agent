@@ -69,6 +69,7 @@ class Finding(Model):
     parameters: dict[str, Any] = Field(default_factory=dict)
     measurements: dict[str, Any] = Field(default_factory=dict)
     evidence_files: list[str] = Field(default_factory=list)
+    evidence_sha256: dict[str, str] = Field(default_factory=dict)
     limitations: list[str] = Field(default_factory=list)
 
 

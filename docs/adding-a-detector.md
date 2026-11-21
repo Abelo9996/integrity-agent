@@ -8,14 +8,17 @@
    algorithm settings, and limitations. Statements must describe observations rather
    than intent. A strength tier measures evidence strength, not a person's reliability.
 4. Return visualization arrays alongside findings when useful. The pipeline writes
-   images under `outputs/<run>/evidence/` and adds relative paths to findings.
+   images under `outputs/<run>/evidence/` and adds relative paths plus their SHA-256
+   digests in `evidence_sha256` to findings; hash the files when they are created.
 5. Register artifact eligibility in `agent.plan()` and call the detector from
    `pipeline.analyze()`. Record skipped prerequisites in collection coverage.
 6. Add offline synthetic tests: known positive, plausible benign case, boundary,
    missing input, stable ID, and parameter change. Measure false positives as well
    as recall; do not tune against a final held-out benchmark.
 7. Feed findings into the report verifier. Do not construct report claims directly
-   from model prose. Verify exact statement/tier/artifact association and source SHA-256.
+   from model prose. Verify unique IDs, exact statement/tier/artifact association,
+   source SHA-256 and each evidence file's recorded SHA-256. See
+   [evidence verification](EVIDENCE_VERIFICATION.md) for path and compatibility rules.
 
 The optional provider implements `Provider.select()` and `Provider.extract_pdf()`.
 A different provider can be passed to `analyze(provider=..., llm=True)`. Provider output

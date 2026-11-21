@@ -20,6 +20,8 @@ uv run integrity-agent run --orcid <ORCID>
 
 The CLI shows author candidates and requires the exact OpenAlex author ID to confirm selection.
 Every report claim is reconstructed from a detector finding and checked before rendering.
+Schema 1.1 rejects ambiguous IDs and checks source/evidence files against recorded hashes;
+see [evidence verification](docs/EVIDENCE_VERIFICATION.md).
 Run artifacts live in ignored `outputs/`, `cache/`, and `data/` folders. Never publish reports
 about individuals. See [responsible use](RESPONSIBLE_USE.md).
 

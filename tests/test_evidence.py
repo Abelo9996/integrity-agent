@@ -2,6 +2,7 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from integrity_agent.cli import app
@@ -45,6 +46,173 @@ def test_verifier_checks_work_association():
     assert not verify(claims_from_findings([f]), [f], [a])[0]
 
 
+def test_duplicate_finding_id_cannot_render_an_uncited_statement(tmp_path):
+    a, f = fixtures()
+    source = tmp_path / "source.bin"
+    source.write_bytes(b"x")
+    a.path = str(source)
+    f.tier = "strong"
+    changed = f.model_copy(update={"statement": "Second synthetic statement.", "tier": "review"})
+    result = write_report(
+        tmp_path,
+        Author(id="synthetic", name="Synthetic"),
+        [Work(id="w", title="Synthetic", author_id="synthetic")],
+        [a],
+        [f, changed],
+        [],
+        claims=claims_from_findings([changed]),
+    )
+    assert result["verification"]["accepted"] == 0
+    assert not result["findings"]
+    assert result["summary"]["papers_with_strong_findings"] == 0
+    assert result["verification"]["rejected"][0]["reason"] == "ambiguous duplicate finding ID"
+    html = (tmp_path / "report.html").read_text()
+    assert f.statement not in html and changed.statement not in html
+
+
+def test_duplicate_artifact_ids_and_claims_fail_closed():
+    a, f = fixtures()
+    claims = claims_from_findings([f])
+    accepted, rejected = verify(claims, [f], [a, a.model_copy()])
+    assert not accepted and rejected[0]["reason"] == "ambiguous duplicate artifact ID"
+    accepted, rejected = verify(claims + claims, [f], [a])
+    assert not accepted and len(rejected) == 2
+    assert all(row["reason"] == "duplicate claims for finding ID" for row in rejected)
+
+
+def image_evidence_fixture(root):
+    from PIL import Image
+
+    a, _ = fixtures()
+    source = root / "source.bin"
+    source.write_bytes(b"x")
+    a.path = str(source)
+    evidence = root / "evidence"
+    evidence.mkdir()
+    path = evidence / "synthetic.png"
+    Image.new("RGB", (20, 20), "white").save(path)
+    f = finding(
+        "D1",
+        "image-reuse",
+        "review",
+        ["w"],
+        ["a"],
+        "Synthetic image match warrants review.",
+        evidence_files=["evidence/synthetic.png"],
+        evidence_sha256={"evidence/synthetic.png": hashlib.sha256(path.read_bytes()).hexdigest()},
+    )
+    return a, f, path
+
+
+def render_image_fixture(root, a, f):
+    return write_report(
+        root,
+        Author(id="synthetic", name="Synthetic"),
+        [Work(id="w", title="Synthetic", author_id="synthetic")],
+        [a],
+        [f],
+        [],
+    )
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "missing",
+        "altered",
+        "missing-digest",
+        "empty-evidence",
+        "extra-digest",
+        "bad-digest",
+        "duplicate-path",
+    ],
+)
+def test_image_claim_rejects_missing_or_altered_evidence(tmp_path, change):
+    a, f, path = image_evidence_fixture(tmp_path)
+    if change == "missing":
+        path.unlink()
+    elif change == "altered":
+        path.write_bytes(b"altered synthetic bytes")
+    elif change == "missing-digest":
+        f.evidence_sha256 = {}
+    elif change == "empty-evidence":
+        f.evidence_files = []
+        f.evidence_sha256 = {}
+    elif change == "extra-digest":
+        f.evidence_sha256["evidence/unclaimed.png"] = "0" * 64
+    elif change == "bad-digest":
+        f.evidence_sha256["evidence/synthetic.png"] = "not-a-digest"
+    else:
+        f.evidence_files.append("evidence/synthetic.png")
+    result = render_image_fixture(tmp_path, a, f)
+    assert result["verification"]["accepted"] == 0
+    assert len(result["verification"]["rejected"]) == 1
+    assert not result["findings"]
+    html = (tmp_path / "report.html").read_text()
+    assert f.statement not in html
+    assert html.index("Verification gaps") < html.index("<section>")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "../outside.png",
+        "/absolute.png",
+        "evidence/../outside.png",
+        "evidence/%2e%2e/outside.png",
+        "evidence/./synthetic.png",
+        "evidence\\synthetic.png",
+    ],
+)
+def test_image_claim_rejects_unsafe_evidence_path(tmp_path, name):
+    a, f, _ = image_evidence_fixture(tmp_path)
+    digest = next(iter(f.evidence_sha256.values()))
+    f.evidence_files = [name]
+    f.evidence_sha256 = {name: digest}
+    result = render_image_fixture(tmp_path, a, f)
+    assert result["verification"]["accepted"] == 0
+    assert result["verification"]["rejected"][0]["reason"] == "unsafe evidence path"
+
+
+@pytest.mark.parametrize("directory_link", [False, True])
+def test_image_claim_rejects_symlink_escape(tmp_path, directory_link):
+    a, f, path = image_evidence_fixture(tmp_path)
+    outside = tmp_path / "elsewhere"
+    outside.mkdir()
+    moved = outside / "synthetic.png"
+    path.rename(moved)
+    if directory_link:
+        path.parent.rmdir()
+        path.parent.symlink_to(outside, target_is_directory=True)
+    else:
+        path.symlink_to(moved)
+    result = render_image_fixture(tmp_path, a, f)
+    assert result["verification"]["accepted"] == 0
+    assert (
+        result["verification"]["rejected"][0]["reason"]
+        == "evidence resolves outside report evidence directory"
+    )
+
+
+def test_intact_evidence_passes_and_unreadable_source_rejects(tmp_path, monkeypatch):
+    a, f, _ = image_evidence_fixture(tmp_path)
+    assert render_image_fixture(tmp_path, a, f)["verification"]["accepted"] == 1
+    original = Path.open
+
+    def fail_source(path, *args, **kwargs):
+        if path == Path(a.path):
+            raise PermissionError("synthetic read denial")
+        return original(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", fail_source)
+    result = render_image_fixture(tmp_path, a, f)
+    assert result["verification"]["accepted"] == 0
+    assert (
+        result["verification"]["rejected"][0]["reason"]
+        == "artifact file absent or SHA-256 mismatch"
+    )
+
+
 def test_html_escapes_source_text(tmp_path):
     a, f = fixtures()
     source = tmp_path / "synthetic-source.bin"
@@ -71,6 +239,10 @@ def test_demo_end_to_end(tmp_path, monkeypatch):
     for f in report["findings"]:
         for path in f["evidence_files"]:
             assert (Path("outputs/demo") / path).exists()
+            assert (
+                hashlib.sha256((Path("outputs/demo") / path).read_bytes()).hexdigest()
+                == f["evidence_sha256"][path]
+            )
 
 
 def test_small_region_evidence_survives_pipeline_and_verifier(tmp_path):

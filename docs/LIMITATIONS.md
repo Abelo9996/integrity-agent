@@ -80,7 +80,10 @@ The optional model prioritizes detector IDs and selects benign-review questions.
 supply new report finding text, upgrade a tier, or assert that a benign explanation is proven.
 The HTML/JSON renderer reconstructs claims from deterministic results. The verifier removes
 unknown IDs, altered statements/tiers, mismatched artifact references and absent/tampered
-source files. This structural verifier does not establish detector scientific validity.
+source files. Schema 1.1 also rejects ambiguous duplicate IDs and missing, unsafe or changed
+evidence files using SHA-256 recorded at creation; see [the verification contract](EVIDENCE_VERIFICATION.md).
+The checks do not establish detector scientific validity or authenticate a report against
+replacement of both its contents and digests.
 Provider use sends excerpts/captions to the configured service; it is opt-in.
 
 ## Validation status

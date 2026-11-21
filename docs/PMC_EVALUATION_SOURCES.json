@@ -1,0 +1,95 @@
+{
+  "figures": [
+    {
+      "id": "artifact-7a3e2caadb0a33e9cebd",
+      "pmcid": "PMC10009416",
+      "source": "https://pmc-oa-opendata.s3.amazonaws.com/PMC10009416.1/NPR2-43-85-g001.jpg?md5=398150948786a4394a2516b9adb1483f",
+      "sha256": "f49be79e14679f7ec1bf57419ff8cfddd01094050dbbca1a7230b612ab3d9de4",
+      "license": "CC BY",
+      "citation": "Neuropsychopharmacol Rep. 2022 Dec 19;43(1):85\u201394. doi: 10.1002/npr2.12307"
+    },
+    {
+      "id": "artifact-9f878ea970074425b536",
+      "pmcid": "PMC10014308",
+      "source": "https://pmc-oa-opendata.s3.amazonaws.com/PMC10014308.1/fx1.jpg?md5=897514088c0cca941d545638d8e4d086",
+      "sha256": "56ee161382b423a771c31ea4d15cab351c04819b128508cb65208e18ca5779e9",
+      "license": "CC BY",
+      "citation": "Cell Rep Methods. 2023 Feb 2;3(2):100398. doi: 10.1016/j.crmeth.2023.100398"
+    },
+    {
+      "id": "artifact-c49b098ebe3da6f88723",
+      "pmcid": "PMC10014308",
+      "source": "https://pmc-oa-opendata.s3.amazonaws.com/PMC10014308.1/gr1.jpg?md5=67615cbbfe2888e941d790b1bd4bf6c4",
+      "sha256": "3f742058a04255fae2e3ce32d4f09070cd0daa81507512f73a7da1145342c098",
+      "license": "CC BY",
+      "citation": "Cell Rep Methods. 2023 Feb 2;3(2):100398. doi: 10.1016/j.crmeth.2023.100398"
+    },
+    {
+      "id": "artifact-fe52de7fd6b264b04b13",
+      "pmcid": "PMC10014308",
+      "source": "https://pmc-oa-opendata.s3.amazonaws.com/PMC10014308.1/gr2.jpg?md5=0a932bb820ca89e25b4eb894d40e7470",
+      "sha256": "6c9bf2cb6b2545f49c6c2a8273f19e2da92cf1d9e8046130434191178de50209",
+      "license": "CC BY",
+      "citation": "Cell Rep Methods. 2023 Feb 2;3(2):100398. doi: 10.1016/j.crmeth.2023.100398"
+    },
+    {
+      "id": "artifact-8044c93909873a8dc680",
+      "pmcid": "PMC10014308",
+      "source": "https://pmc-oa-opendata.s3.amazonaws.com/PMC10014308.1/gr3.jpg?md5=97bec3bcdf56f34b682a06a6d421de09",
+      "sha256": "e14de687927e5417ab9941929742795f44c74fb32b37142ad8543145f3d4bc8f",
+      "license": "CC BY",
+      "citation": "Cell Rep Methods. 2023 Feb 2;3(2):100398. doi: 10.1016/j.crmeth.2023.100398"
+    },
+    {
+      "id": "artifact-6bbdd9cd4dd1958e4aa8",
+      "pmcid": "PMC10014308",
+      "source": "https://pmc-oa-opendata.s3.amazonaws.com/PMC10014308.1/gr4.jpg?md5=7f7f0b8de1de49f698f88cbe65c6e73c",
+      "sha256": "d9ce38fa5199c127a160430ab44e3b4f15d889ef31a6d047aa34fe427d08f7a2",
+      "license": "CC BY",
+      "citation": "Cell Rep Methods. 2023 Feb 2;3(2):100398. doi: 10.1016/j.crmeth.2023.100398"
+    },
+    {
+      "id": "artifact-1f1e53cba72dc0092959",
+      "pmcid": "PMC10669708",
+      "source": "https://pmc-oa-opendata.s3.amazonaws.com/PMC10669708.1/biosensors-13-00973-g001.jpg?md5=1f0e9d964302578f1c47444260038dad",
+      "sha256": "fad84a9422903904f961f640e2a3232b5d0ae1e6399212d558973310fa5d406b",
+      "license": "CC BY",
+      "citation": "Biosensors (Basel). 2023 Nov 7;13(11):973. doi: 10.3390/bios13110973"
+    },
+    {
+      "id": "artifact-23f9ccdbc411d392742d",
+      "pmcid": "PMC10669708",
+      "source": "https://pmc-oa-opendata.s3.amazonaws.com/PMC10669708.1/biosensors-13-00973-g002.jpg?md5=10e11d08e46580199fd18f0f62b9676a",
+      "sha256": "c843e2e2cd36a1521785b010d3bcda1571792e7e41f454e5d05b2f0287872d27",
+      "license": "CC BY",
+      "citation": "Biosensors (Basel). 2023 Nov 7;13(11):973. doi: 10.3390/bios13110973"
+    },
+    {
+      "id": "artifact-a75e51dffccf12c96168",
+      "pmcid": "PMC10669708",
+      "source": "https://pmc-oa-opendata.s3.amazonaws.com/PMC10669708.1/biosensors-13-00973-g003.jpg?md5=f9240cdfa34e6293906bafbe2dbfcc88",
+      "sha256": "cc1f7dd028208bcd97f77cd658d9a82d8d44a59d70e6dbb9d96018d7b2b3521d",
+      "license": "CC BY",
+      "citation": "Biosensors (Basel). 2023 Nov 7;13(11):973. doi: 10.3390/bios13110973"
+    },
+    {
+      "id": "artifact-26196d85778b29df9e97",
+      "pmcid": "PMC10669708",
+      "source": "https://pmc-oa-opendata.s3.amazonaws.com/PMC10669708.1/biosensors-13-00973-g004.jpg?md5=8dca9f66b333dc338d1a3e600fdb4cac",
+      "sha256": "61deac34817ed05bbc107d8f12250a9a6ce1d06183e302768fa399ab0abc70aa",
+      "license": "CC BY",
+      "citation": "Biosensors (Basel). 2023 Nov 7;13(11):973. doi: 10.3390/bios13110973"
+    },
+    {
+      "id": "artifact-a24533ff4f95f42531fe",
+      "pmcid": "PMC10669708",
+      "source": "https://pmc-oa-opendata.s3.amazonaws.com/PMC10669708.1/biosensors-13-00973-g005.jpg?md5=adfb697e8a313923bc432b10f027da08",
+      "sha256": "1d236da849b6302fe9cc5a1c612e2f9d83a84591f42f5351ccb31e9036c9738a",
+      "license": "CC BY",
+      "citation": "Biosensors (Basel). 2023 Nov 7;13(11):973. doi: 10.3390/bios13110973"
+    }
+  ],
+  "negative_pair_rule": "All cross-article pairs; assistant visually reviewed, not independently human-adjudicated",
+  "normalization": "central square crop resized to 320px",
+  "retrieval_date": "2026-11-21"
+}

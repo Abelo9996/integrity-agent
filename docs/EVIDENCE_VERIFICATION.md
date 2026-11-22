@@ -1,6 +1,6 @@
 # Evidence verification
 
-Report schema **1.3** retains the reference and file checks introduced in schema 1.1.
+Report schema **1.4** retains the reference and file checks introduced in schema 1.1.
 This is an integrity check on the report pipeline, not scientific validation of detectors.
 
 ## Claim and identifier checks

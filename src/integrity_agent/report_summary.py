@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from pathlib import Path
 
 from .models import Artifact, Coverage, DetectorCoverage, Finding, Work, stable_id
 
@@ -73,7 +74,7 @@ def reading_summary(
     categories: dict[tuple[str, str, str], list[Finding]] = {}
     for f in findings:
         categories.setdefault((f.detector, f.kind, f.tier), []).append(f)
-    rows = []
+    rows: list[dict] = []
     for (detector, kind, tier), members in sorted(
         categories.items(),
         key=lambda pair: (
@@ -90,7 +91,7 @@ def reading_summary(
                 "Review the detector assumptions and source evidence.",
             ),
         )
-        row = {
+        row: dict = {
             "id": stable_id("category", (detector, kind, tier)),
             "detector": detector,
             "kind": kind,
@@ -118,7 +119,7 @@ def reading_summary(
             }
         rows.append(row)
 
-    coverage_rows = []
+    coverage_rows: list[dict] = []
     for detector, label in DETECTORS.items():
         events = [c for c in checks if c.detector == detector and c.work_id in known]
         ran = sorted({c.work_id for c in events if c.status == "ran"})
@@ -145,7 +146,98 @@ def reading_summary(
     else:
         headline = "Read the results alongside the coverage limits."
     priority = [f for f in findings if f.tier in ("review", "strong")]
+    core_work_ids = sorted(
+        {wid for row in coverage_rows[:4] for wid in row["work_ids_with_completed_check"]}
+    )
+    documents = [
+        a
+        for a in artifacts
+        if a.work_id in known and Path(a.path).suffix.lower() in (".pdf", ".xml", ".txt")
+    ]
+    notice_documents = [a for a in documents if notice_title(known[a.work_id].title)]
+    outcome: dict
+    if not known:
+        outcome = {
+            "state": "no_records",
+            "label": "No records in scope",
+            "title": "There was nothing to assess.",
+            "explanation": "No publication records were included in this run.",
+            "next_step": "Resolve the author and collect linked publications before running checks.",
+        }
+    elif priority:
+        outcome = {
+            "state": "review_required",
+            "label": "Evidence needs review",
+            "title": "There are signals to inspect.",
+            "explanation": "Automated checks raised review-level signals. Open the evidence before drawing conclusions.",
+            "next_step": "Have a subject expert inspect the evidence and possible benign explanations.",
+        }
+    elif not core_work_ids:
+        outcome = {
+            "state": "not_assessed",
+            "label": "Inconclusive · missing inputs",
+            "title": "This run could not test the research data.",
+            "explanation": "No image, statistics or raw-data checks completed. This run cannot answer whether the research data contain anomalies.",
+            "next_step": "Obtain original figures or usable data, then rerun the relevant checks.",
+        }
+    else:
+        outcome = {
+            "state": "no_priority_signals",
+            "label": "Limited to the checks run",
+            "title": "No review-level signals in the checks run.",
+            "explanation": "Some research-data checks completed. Missing inputs and detector limits still leave questions unanswered.",
+            "next_step": "Review coverage gaps before deciding which additional checks are needed.",
+        }
+    outcome["finding_ids"] = sorted(f.id for f in priority)
+    outcome["artifact_ids"] = sorted({a for f in priority for a in f.artifact_ids})
+    cards = []
+    for row in rows:
+        card = {
+            "category_id": row["id"],
+            "tier": row["tier"],
+            "kind": row["kind"],
+            "finding_ids": row["finding_ids"],
+            "artifact_ids": row["artifact_ids"],
+            "metric": str(row["result_count"]),
+            "label": row["label"],
+            "note": "Open the detector evidence and check its assumptions.",
+            "badge": "Context only" if row["tier"] == "info" else "Human review needed",
+        }
+        if row["kind"] == "publication-update":
+            retracted = row["status_work_ids"].get("retraction", [])
+            card.update(
+                metric=str(len(retracted) if retracted else len(row["work_ids"])),
+                label="records linked to retraction notices"
+                if retracted
+                else "records linked to publication updates",
+                note="Existing publication history. Read the official notices for their scope.",
+                badge="Existing records",
+            )
+        elif row["kind"] == "text-reuse":
+            all_notices = len(row["notice_title_finding_ids"]) == row["result_count"]
+            card.update(
+                label="text overlaps in notice-titled records"
+                if all_notices
+                else "text overlaps to check in context",
+                note="Shared notice wording may explain these matches."
+                if all_notices
+                else "Attribution and standard wording may explain these matches.",
+            )
+        elif row["kind"] == "output-context":
+            card.update(
+                label="publication-output comparisons flagged",
+                note="Career stage and collaborations can explain high output.",
+            )
+        cards.append(card)
     return {
+        "outcome": outcome,
+        "cards": cards,
+        "collection": {
+            "publication_record_count": len(known),
+            "document_artifact_ids": sorted(a.artifact_id for a in documents),
+            "notice_title_document_ids": sorted(a.artifact_id for a in notice_documents),
+            "core_checked_work_ids": core_work_ids,
+        },
         "headline": headline,
         "missing_core_checks": missing_core,
         "counts_by_tier": {tier: sum(f.tier == tier for f in findings) for tier in TIERS},

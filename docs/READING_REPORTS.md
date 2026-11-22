@@ -1,40 +1,61 @@
 # Reading a report
 
-Open `report.html`. The first section explains what the run can establish, which checks
-could not be assessed, and the results that need context. Read coverage before interpreting
-a zero: no signal from missing inputs is not a negative result.
+Open `report.html` for the dashboard or `summary.svg` for the one-page visual summary.
+The overview answers: **What did this run establish, what did it check, and what is next?**
 
-The three counters show work records in scope, review/strong-tier results, and informational
-results. They are not a score or a count of confirmed problems. Work records can include
-notices and different versions of a paper. Several sources can report the same notice.
+The outcome describes the run, never the person:
 
-Results are summarized by type and original detector tier. For example, two source records
-for one synthetic correction count as two informational results linked to one work record;
-the summary does not claim there were two independent corrections. Text overlap involving
-records with notice-style titles is explicitly labeled as a title cue. Shared wording may
-explain it; this does not prove the document type or establish a benign explanation.
+- **Inconclusive · missing inputs:** no image, statistics or raw-data checks completed.
+- **Evidence needs review:** accepted detector results reached review or strong tier.
+- **Limited to the checks run:** some research-data checks ran without review-level signals.
+- **No records in scope:** no publication records were included.
 
-The coverage table counts distinct work records with at least one completed check in each
-category. This is not exhaustive coverage: publication-status checks do not imply registry
-comparisons ran, and an image self-check does not imply cross-paper matching ran. Expand
-individual checks or a work record to see missing inputs and failures. A work may have both
-completed and failed checks. Source-attempt counts are separate from work counts.
+None of these outcomes establishes that the research is reliable. Rejected claims remain
+excluded from all counts, and a verification warning stays visible when claims are rejected.
 
-Open a result category, then a result, to see the unchanged detector statement, evidence,
-linked work records, limitations and source IDs. Repeated equivalent image evidence appears
-once in this list with every underlying finding ID retained. The work-record index links to
-these same results instead of repeating them. Deep links open the relevant evidence; the
-report remains readable offline without JavaScript using its expandable sections.
+## The visual overview
 
-“Verified” means identifier associations and evidence-file hashes passed the deterministic
-checks. It does not mean a human confirmed a scientific interpretation. Rejected findings
-are excluded from every summary count and shown in a prominent verification warning.
+The collection path shows publication records, document files and records with at least one
+completed image/statistics/raw-data check. These use different units; it is not a conversion
+rate. Publication records may include notices and versions. Document files are PDF, XML or
+text artifacts, including downloads linked through metadata and files extracted from
+archives. A downloaded document is not automatically original research content.
 
-Schema 1.3 adds `reading_summary` to JSON while retaining all existing evidence and coverage
-fields. Its result categories are computed only after both verifier stages, with explicit
-finding, artifact and work IDs. Coverage comes from the runtime ledger; title cues come
-from linked work metadata. No model writes or upgrades a summary finding. The HTML is a
-view of these aggregates, not another detector or an independent validation study.
+Up to three evidence cards appear in review priority order. Every category remains available
+in the evidence library. Publication-notice cards count distinct linked work records; the
+other cards count detector results. For example, two metadata sources for one synthetic
+correction count as one work record on the card and two tool results in the library. A title
+cue can identify notice-like records but cannot prove document type or explain a match.
+Image cards show a preview of the verified detector evidence when available.
+
+The six coverage tiles count distinct records with at least one completed check in each
+category. Blue bars mean some checks ran, not that the research passed. Hatched bars and
+“Not tested” labels distinguish missing checks from negative results. Counts are labeled
+directly; color is not the only cue. Publication-status checks do not imply registry
+comparisons ran, and an image self-check does not imply cross-paper matching ran.
+
+## Evidence and coverage views
+
+Each card opens its evidence category. Open a result for the unchanged detector statement,
+source files, limitations, IDs and measurements. Equivalent image evidence appears once,
+with every raw finding ID retained. Deep links reveal the appropriate view and disclosure.
+
+Click a coverage tile for individual check counts and missing-input reasons. The coverage
+and sources view also contains the work-record index, source log and complete JSON.
+“Verified” means identifiers and source/evidence hashes passed deterministic checks;
+it does not mean an expert confirmed a scientific interpretation.
+
+The report works offline. With JavaScript disabled, all three views remain readable in
+sequence, with evidence details collapsed. The standalone SVG has no scripts or network
+dependencies; its cards link to the HTML evidence and its metadata retains summary IDs.
+
+## Data contract
+
+Schema 1.4 extends `reading_summary` with `outcome`, `collection` and `cards`. All result
+aggregates are computed after both verifier stages and preserve finding/artifact IDs.
+Coverage comes from the runtime ledger; document counts and title cues use linked artifact
+and work metadata. No model creates or upgrades a finding. Reports and visual summaries
+are presentations of existing evidence, not a new detector or independent validation study.
 
 Keep reports private. **Anomalies are not proof of misconduct. Findings require expert
 human review.**

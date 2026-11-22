@@ -12,6 +12,7 @@ from .agent import REVIEW_QUESTIONS
 from .assessment import AssessmentLedger, coverage_summary
 from .models import FOOTER, Artifact, Author, Claim, Coverage, Finding, Work
 from .report_html import render_report
+from .report_snapshot import render_snapshot
 from .report_summary import reading_summary
 from .review_groups import review_groups
 
@@ -179,7 +180,7 @@ def write_report(
         "artifacts_collected": len(artifacts),
     }
     report = {
-        "schema_version": "1.3",
+        "schema_version": "1.4",
         "author": author.model_dump(mode="json"),
         "summary": summary,
         "reading_summary": reading_summary(works, artifacts, verified, coverage, detector_coverage),
@@ -197,4 +198,5 @@ def write_report(
     (root / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     (root / "verifier-log.json").write_text(json.dumps(rejected, indent=2), encoding="utf-8")
     (root / "report.html").write_text(render_report(report), encoding="utf-8")
+    (root / "summary.svg").write_text(render_snapshot(report), encoding="utf-8")
     return report

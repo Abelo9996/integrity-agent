@@ -1,8 +1,9 @@
 """Summary semantics must preserve evidence and distinguish unknown from negative."""
 
 import hashlib
+import json
 
-from lxml import html
+from lxml import etree, html
 
 from integrity_agent.models import Artifact, Author, Coverage, DetectorCoverage, Work, finding
 from integrity_agent.report import write_report
@@ -51,6 +52,9 @@ def test_summary_counts_results_not_unique_notices_or_confirmed_issues(tmp_path)
     assert row["status_work_ids"] == {"correction": ["w"]}
     assert brief["counts_by_tier"] == {"strong": 0, "review": 0, "info": 2}
     assert not brief["priority_finding_ids"]
+    assert brief["outcome"]["state"] == "not_assessed"
+    assert brief["cards"][0]["metric"] == "1"
+    assert brief["cards"][0]["finding_ids"] == row["finding_ids"]
     assert "not independent issues" in row["explanation"]
     assert len(report["findings"]) == len(report["claims"]) == 2
 
@@ -64,6 +68,8 @@ def test_failed_verification_never_enters_summary_or_priority(tmp_path):
     report = write_report(tmp_path, author, [work], [a], [f], [])
     assert not report["reading_summary"]["categories"]
     assert not report["reading_summary"]["priority_finding_ids"]
+    assert not report["reading_summary"]["outcome"]["finding_ids"]
+    assert report["reading_summary"]["outcome"]["state"] != "review_required"
     assert not any(report["reading_summary"]["counts_by_tier"].values())
     rendered = (tmp_path / "report.html").read_text()
     assert f.statement not in rendered
@@ -159,6 +165,9 @@ def test_priority_order_collapsed_evidence_and_every_internal_link_resolves(tmp_
     assert [c["tier"] for c in brief["categories"]] == ["strong", "review", "info"]
     assert brief["priority_work_ids"] == ["w"]
     assert len(brief["priority_finding_ids"]) == 2
+    assert brief["outcome"]["state"] == "review_required"
+    assert brief["outcome"]["finding_ids"] == brief["priority_finding_ids"]
+    assert brief["outcome"]["artifact_ids"] == ["a"]
     page = html.fromstring((tmp_path / "report.html").read_text())
     ids = page.xpath("//*[@id]/@id")
     assert len(ids) == len(set(ids))
@@ -191,7 +200,111 @@ def test_empty_run_and_scope_limit_are_not_presented_as_success(tmp_path):
     assert len(brief["missing_core_checks"]) == 4
     assert not brief["collection_attempts"]
     assert all(c["status"] == "not_assessed" for c in brief["detector_coverage"])
+    assert brief["outcome"]["state"] == "no_records"
     rendered = (tmp_path / "report.html").read_text()
     assert rendered.index("Explicit limit") < rendered.index('id="summary"')
-    assert "could not be assessed" in rendered
+    assert "There was nothing to assess" in rendered
     assert "No accepted detector results are available" in rendered
+
+
+def test_documents_keep_metadata_parent_links_and_notice_cue(tmp_path):
+    author = Author(id="author", name="Synthetic")
+    work = Work(id="w", title="Correction: Synthetic study", author_id=author.id)
+    metadata = source(tmp_path, "w", "metadata")
+    metadata.path = str(tmp_path / "metadata.json")
+    (tmp_path / "metadata.json").write_bytes(b"synthetic source")
+    document = source(tmp_path, "w", "document")
+    document.path = str(tmp_path / "notice.pdf")
+    (tmp_path / "notice.pdf").write_bytes(b"synthetic source")
+    document.parent_artifact_id = metadata.artifact_id
+    report = write_report(tmp_path, author, [work], [metadata, document], [], [])
+    collection = report["reading_summary"]["collection"]
+    assert collection["document_artifact_ids"] == [document.artifact_id]
+    assert collection["notice_title_document_ids"] == [document.artifact_id]
+    assert collection["publication_record_count"] == 1
+    assert not collection["core_checked_work_ids"]
+    page = html.fromstring((tmp_path / "report.html").read_text())
+    assert len(page.xpath('//*[@id="summary"]//a[contains(@class,"coverage-tile")]')) == 6
+    assert "All linked to records with notice-style titles" in page.text_content()
+
+
+def test_completed_checks_without_results_are_not_declared_clean(tmp_path):
+    author = Author(id="author", name="Synthetic")
+    work = Work(id="w", title="Synthetic work", author_id=author.id)
+    checks = [
+        DetectorCoverage(
+            work_id=work.id,
+            detector="D1",
+            check="copy-move",
+            status="ran",
+            input_count=1,
+            detail="Synthetic completed check",
+        )
+    ]
+    report = write_report(tmp_path, author, [work], [], [], [], detector_coverage=checks)
+    brief = report["reading_summary"]
+    assert brief["outcome"]["state"] == "no_priority_signals"
+    assert brief["collection"]["core_checked_work_ids"] == [work.id]
+    assert "Missing inputs" in brief["outcome"]["explanation"]
+    assert "clean" not in brief["outcome"]["title"].lower()
+
+
+def test_overview_has_visual_cards_and_separate_evidence_views(tmp_path):
+    author = Author(id="author", name="Synthetic")
+    work = Work(id="w", title="Synthetic work", author_id=author.id)
+    a = source(tmp_path, work.id, "a")
+    findings = [
+        finding("D2", kind, "review", [work.id], [a.artifact_id], f"Synthetic {kind}.")
+        for kind in ("first", "second", "third", "fourth")
+    ]
+    report = write_report(tmp_path, author, [work], [a], findings, [])
+    page = html.fromstring((tmp_path / "report.html").read_text())
+    overview = page.get_element_by_id("summary")
+    assert len(overview.xpath('.//article[contains(@class,"evidence-card")]')) == 3
+    assert len(page.get_element_by_id("results").xpath('.//details[@class="category"]')) == 4
+    assert len(overview.text_content().split()) < 350
+    assert not overview.xpath(".//pre | .//table")
+    assert all(f.id not in overview.text_content() for f in findings)
+    assert len(report["reading_summary"]["cards"]) == 4
+    assert "first three in review priority order" in overview.text_content()
+    assert page.xpath("//a[@data-view]/@data-view") == ["summary", "results", "audit"]
+
+
+def test_vector_summary_preserves_verified_data_links_and_visible_cards(tmp_path):
+    import pymupdf
+
+    author = Author(id="author", name="Synthetic <script>alert(1)</script>")
+    work = Work(id="w", title="Synthetic work", author_id=author.id)
+    a = source(tmp_path, work.id, "a")
+    good = finding(
+        "D5",
+        "publication-update",
+        "info",
+        ["w"],
+        ["a"],
+        "Synthetic correction recorded.",
+        measurements={"type": "correction"},
+    )
+    bad = finding("D2", "synthetic", "strong", ["w"], ["absent"], "Unsupported statement.")
+    report = write_report(tmp_path, author, [work], [a], [good, bad], [])
+    svg_bytes = (tmp_path / "summary.svg").read_bytes()
+    svg = etree.fromstring(svg_bytes)
+    ns = {"s": "http://www.w3.org/2000/svg"}
+    metadata = json.loads(svg.xpath("string(s:metadata)", namespaces=ns))
+    assert metadata == report["reading_summary"]
+    assert metadata["cards"][0]["finding_ids"] == [good.id]
+    assert bad.id not in svg_bytes.decode()
+    assert not svg.xpath("//s:script", namespaces=ns)
+    page = html.fromstring((tmp_path / "report.html").read_text())
+    for link in svg.xpath("//s:a/@href", namespaces=ns):
+        assert link.startswith("report.html#")
+        assert page.get_element_by_id(link.split("#")[1]) is not None
+    # Catch unsupported vector constructs that could make card text disappear in export.
+    with pymupdf.open(stream=svg_bytes, filetype="svg") as source_svg:
+        pdf_bytes = source_svg.convert_to_pdf()
+    with pymupdf.open(stream=pdf_bytes, filetype="pdf") as doc:
+        text = doc[0].get_text()
+        assert "records linked to publication updates" in text
+        assert "Verification gaps: 1 claims excluded" in text
+        assert "Unsupported statement" not in text
+        assert len(doc) == 1

@@ -73,4 +73,4 @@ def test_grouping_preserves_claims_and_rejects_ambiguous_ids(tmp_path):
     report = write_report(tmp_path, author, works, artifacts, findings + [conflicting], [])
     assert all(findings[0].id not in g["finding_ids"] for g in report["review_groups"])
     assert len(report["verification"]["rejected"]) == 2
-    assert json.loads((tmp_path / "report.json").read_text())["schema_version"] == "1.3"
+    assert json.loads((tmp_path / "report.json").read_text())["schema_version"] == "1.4"

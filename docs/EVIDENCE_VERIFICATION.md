@@ -1,6 +1,6 @@
 # Evidence verification
 
-Report schema **1.1** validates both references and the files used to support a claim.
+Report schema **1.3** retains the reference and file checks introduced in schema 1.1.
 This is an integrity check on the report pipeline, not scientific validation of detectors.
 
 ## Claim and identifier checks
@@ -29,6 +29,11 @@ changed files cause rejection. Resolved evidence paths must remain inside the re
 `evidence/` directory, including after symlink resolution. Traversal, absolute and encoded
 escape paths are rejected. Structural verification alone does not check file bytes;
 `write_report()` runs both stages.
+
+Only accepted findings enter the concise `reading_summary` and its counts. Categories
+retain all finding and artifact IDs; they do not infer independent issue counts or change
+detector tiers. Coverage summaries use distinct work IDs from the runtime ledger. See
+[reading reports](READING_REPORTS.md) for the presentation and counting rules.
 
 Hashes are checked at report generation. They do not authenticate an entire report against
 someone who can replace both its contents and recorded digests, and they do not establish

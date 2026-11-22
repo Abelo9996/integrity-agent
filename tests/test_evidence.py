@@ -223,7 +223,14 @@ def test_html_escapes_source_text(tmp_path):
     work = Work(id="w", title="<img onerror=x>", author_id=author.id)
     report = write_report(tmp_path, author, [work], [a], [f], [])
     html = (tmp_path / "report.html").read_text()
-    assert "<script>" not in html
+    from lxml.html import fromstring
+
+    from integrity_agent.report_html import SCRIPT
+
+    # Only the fixed disclosure helper is executable; source text stays escaped.
+    page = fromstring(html)
+    assert page.xpath("//script/text()") == [SCRIPT]
+    assert not page.xpath("//*[@onerror]")
     assert "&lt;script&gt;" in html
     assert report["verification"]["accepted"] == 1
 

@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 import hashlib
-import html
 import json
 import re
 from collections import Counter
 from pathlib import Path
-from urllib.parse import quote, urlsplit
 
 from .agent import REVIEW_QUESTIONS
 from .assessment import AssessmentLedger, coverage_summary
 from .models import FOOTER, Artifact, Author, Claim, Coverage, Finding, Work
+from .report_html import render_report
+from .report_summary import reading_summary
 from .review_groups import review_groups
 
 
@@ -130,10 +130,6 @@ def verify_files(
     return accepted, rejected
 
 
-def safe_source(url: str):
-    return url if urlsplit(url).scheme == "https" else ""
-
-
 def write_report(
     root: Path,
     author: Author,
@@ -183,9 +179,10 @@ def write_report(
         "artifacts_collected": len(artifacts),
     }
     report = {
-        "schema_version": "1.2",
+        "schema_version": "1.3",
         "author": author.model_dump(mode="json"),
         "summary": summary,
+        "reading_summary": reading_summary(works, artifacts, verified, coverage, detector_coverage),
         "works": [w.model_dump(mode="json") for w in works],
         "artifacts": [a.model_dump(mode="json") for a in artifacts],
         "findings": [f.model_dump(mode="json") for f in verified],
@@ -199,114 +196,5 @@ def write_report(
     }
     (root / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     (root / "verifier-log.json").write_text(json.dumps(rejected, indent=2), encoding="utf-8")
-    esc = html.escape
-    body = [
-        f"<h1>Evidence review: {esc(author.name)}</h1>",
-        "<p>No overall verdict is provided.</p>",
-        f"<p>{summary['works_attempted']} works attempted; {len(artifacts)} artifacts collected; "
-        f"{len(strong)} papers with strong findings.</p>",
-        f"<p>{len(verified)} verified detector results in {len(groups)} review groups. Grouping changes presentation only; all finding IDs remain in JSON.</p>",
-        "<p>Detector coverage below distinguishes completed checks from missing inputs and failures. A completed check with no finding does not establish a clean paper.</p>",
-    ]
-    profile = (review or {}).get("image_profile", "not recorded")
-    body.append(f"<p>Image search profile: {esc(profile)}</p>")
-    if profile == "experimental-compression":
-        body.append(
-            "<aside><strong>Experimental image search.</strong> This profile reduced review signals in constructed negatives but missed more small smooth copies in regression tests. Its sensitivity is not established; see the repository evaluation results.</aside>"
-        )
-    scope_notes = [c.detail for c in coverage if c.work_id == author.id and c.status == "skipped"]
-    if scope_notes:
-        body.append(
-            "<aside><h2>Scope of this run</h2><ul>"
-            + "".join(f"<li>{esc(note)}</li>" for note in scope_notes)
-            + "</ul></aside>"
-        )
-    if rejected:
-        reasons = Counter(item["reason"] for item in rejected)
-        body.append(
-            f"<aside><h2>Verification gaps</h2><p>{len(rejected)} claims were excluded. "
-            "Review these errors before interpreting this report.</p><ul>"
-            + "".join(f"<li>{esc(reason)}: {count}</li>" for reason, count in reasons.items())
-            + '</ul><p><a href="verifier-log.json">Verification log with finding IDs</a></p></aside>'
-        )
-    body.extend(
-        [
-            "<h2>Benign explanations to examine</h2><ul>"
-            + "".join(f"<li>{esc(q)}</li>" for q in REVIEW_QUESTIONS.values())
-            + "</ul>",
-        ]
-    )
-    for work in works:
-        body.append(
-            f"<section><h2>{esc(work.title)}</h2><p>{esc(str(work.year))} · {esc(work.venue)}</p>"
-        )
-        body.append(
-            "<details open><summary>Detector coverage for this paper</summary><table><thead><tr><th>Check</th><th>Status</th><th>Inputs</th><th>Scope / reason</th></tr></thead><tbody>"
-        )
-        for c in detector_coverage:
-            if c.work_id == work.id:
-                body.append(
-                    f"<tr><td>{esc(c.detector)} / {esc(c.check)}</td><td>{esc(c.status)}</td><td>{c.input_count}</td><td>{esc(c.detail)}</td></tr>"
-                )
-        body.append("</tbody></table></details>")
-        work_groups = [g for g in groups if work.id in g["work_ids"]]
-        fs = [f for f in verified if f.id in {g["representative_id"] for g in work_groups}]
-        if not fs:
-            body.append(
-                "<p>No detector findings in the collected artifacts. This does not establish reliability or completeness.</p>"
-            )
-        for f in fs:
-            group = next(g for g in work_groups if g["representative_id"] == f.id)
-            body.append(
-                f"<article><h3>{esc(f.detector)} · {esc(f.tier)}</h3><p>{esc(f.statement)}</p><code>{esc(f.id)}</code>"
-            )
-            body.append(
-                "<details><summary>Detector measurements and assumptions</summary><pre>"
-                + esc(
-                    json.dumps(
-                        {"parameters": f.parameters, "measurements": f.measurements}, indent=2
-                    )
-                )
-                + "</pre></details>"
-            )
-            for evidence in f.evidence_files:
-                body.append(
-                    f'<img src="{esc(quote(evidence, safe="/"), quote=True)}" alt="Detector matching evidence">'
-                )
-            if len(group["finding_ids"]) > 1:
-                body.append(
-                    "<details><summary>Equivalent evidence: all finding IDs</summary><ul>"
-                    + "".join(f"<li>{esc(fid)}</li>" for fid in group["finding_ids"])
-                    + "</ul></details>"
-                )
-            for a in artifacts:
-                if a.artifact_id in group["artifact_ids"]:
-                    url = safe_source(a.url)
-                    label = esc(a.artifact_id)
-                    body.append(
-                        f'<p>Source: <a href="{esc(url, quote=True)}">{label}</a> · {esc(a.license)}</p>'
-                        if url
-                        else f"<p>Source: {label}</p>"
-                    )
-            body.append(
-                "<ul>"
-                + "".join(f"<li>{esc(lim)}</li>" for lim in f.limitations)
-                + "</ul></article>"
-            )
-        body.append("</section>")
-    body.append(
-        "<h2>Collection coverage</h2><ul>"
-        + "".join(
-            f"<li>{esc(c.work_id)} · {esc(c.source)} · {c.status}: {esc(c.detail)}</li>"
-            for c in coverage
-        )
-        + "</ul>"
-    )
-    body.append(f"<footer>{FOOTER}</footer>")
-    document = (
-        '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Evidence review</title><style>body{font:16px/1.55 system-ui,sans-serif;max-width:1000px;margin:40px auto;padding:0 24px;color:#15232b;background:#fafbfc}article{border:1px solid #bac8d0;padding:20px;margin:16px 0;background:white}img{max-width:100%;height:auto}table{width:100%;border-collapse:collapse}td,th{text-align:left;vertical-align:top;border-bottom:1px solid #ddd;padding:6px;overflow-wrap:anywhere}pre{white-space:pre-wrap;overflow-wrap:anywhere}code,a{overflow-wrap:anywhere}footer{border-top:3px solid #345;padding:20px 0;font-weight:700}h1,h2,h3{line-height:1.2}</style><body>'
-        + "".join(body)
-        + "</body></html>"
-    )
-    (root / "report.html").write_text(document, encoding="utf-8")
+    (root / "report.html").write_text(render_report(report), encoding="utf-8")
     return report

@@ -1,0 +1,197 @@
+"""Summary semantics must preserve evidence and distinguish unknown from negative."""
+
+import hashlib
+
+from lxml import html
+
+from integrity_agent.models import Artifact, Author, Coverage, DetectorCoverage, Work, finding
+from integrity_agent.report import write_report
+from integrity_agent.report_summary import notice_title
+
+
+def source(root, wid, aid):
+    path = root / f"{aid}.txt"
+    path.write_bytes(b"synthetic source")
+    return Artifact(
+        work_id=wid,
+        artifact_id=aid,
+        source="synthetic",
+        url="https://example.org/source",
+        linking_identifier=wid,
+        sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+        license="CC0",
+        path=str(path),
+        media_type="text/plain",
+    )
+
+
+def test_summary_counts_results_not_unique_notices_or_confirmed_issues(tmp_path):
+    author = Author(id="author", name="Synthetic researcher")
+    works = [Work(id="w", title="Synthetic paper", author_id=author.id)]
+    artifacts = [source(tmp_path, "w", aid) for aid in ("a", "b")]
+    findings = [
+        finding(
+            "D5",
+            "publication-update",
+            "info",
+            ["w"],
+            [a.artifact_id],
+            "An identifier-linked correction notice is recorded for this paper.",
+            measurements={"type": "correction", "notice_doi": "synthetic-notice"},
+        )
+        for a in artifacts
+    ]
+    report = write_report(tmp_path, author, works, artifacts, findings, [])
+    brief = report["reading_summary"]
+    row = brief["categories"][0]
+    assert row["result_count"] == 2
+    assert row["work_ids"] == ["w"]
+    assert set(row["finding_ids"]) == {f.id for f in findings}
+    assert row["artifact_ids"] == ["a", "b"]
+    assert row["status_work_ids"] == {"correction": ["w"]}
+    assert brief["counts_by_tier"] == {"strong": 0, "review": 0, "info": 2}
+    assert not brief["priority_finding_ids"]
+    assert "not independent issues" in row["explanation"]
+    assert len(report["findings"]) == len(report["claims"]) == 2
+
+
+def test_failed_verification_never_enters_summary_or_priority(tmp_path):
+    author = Author(id="author", name="Synthetic")
+    work = Work(id="w", title="Synthetic", author_id=author.id)
+    a = source(tmp_path, work.id, "a")
+    f = finding("D2", "test", "strong", [work.id], [a.artifact_id], "Synthetic inconsistency.")
+    (tmp_path / "a.txt").write_text("changed")
+    report = write_report(tmp_path, author, [work], [a], [f], [])
+    assert not report["reading_summary"]["categories"]
+    assert not report["reading_summary"]["priority_finding_ids"]
+    assert not any(report["reading_summary"]["counts_by_tier"].values())
+    rendered = (tmp_path / "report.html").read_text()
+    assert f.statement not in rendered
+    assert "Verification gaps" in rendered
+
+
+def test_coverage_uses_distinct_work_records_and_does_not_hide_failures(tmp_path):
+    author = Author(id="author", name="Synthetic")
+    works = [Work(id=f"w{i}", title=f"Synthetic {i}", author_id=author.id) for i in (1, 2)]
+    events = [
+        DetectorCoverage(
+            work_id="w1",
+            detector="D1",
+            check=check,
+            status=status,
+            input_count=3,
+            detail="Synthetic check",
+        )
+        for check, status in (("copy-move", "ran"), ("copy-move", "ran"), ("image-reuse", "failed"))
+    ]
+    events.append(
+        DetectorCoverage(
+            work_id="unknown",
+            detector="D1",
+            check="copy-move",
+            status="ran",
+            input_count=1,
+            detail="Out of scope",
+        )
+    )
+    report = write_report(tmp_path, author, works, [], [], [], detector_coverage=events)
+    brief = report["reading_summary"]
+    d1, d2 = brief["detector_coverage"][:2]
+    assert d1["works_with_completed_check"] == 1
+    assert d1["works_without_completed_check"] == 1
+    assert d1["work_ids_with_failed_check"] == ["w1"]
+    assert d1["status"] == "some_checks_ran"
+    assert d2["status"] == "not_assessed"
+    assert "Summary statistics" in brief["missing_core_checks"]
+    assert "Images" not in brief["missing_core_checks"]
+    rendered = (tmp_path / "report.html").read_text()
+    assert "also had failed checks" in rendered
+    assert "This does not mean every check ran" in rendered
+
+
+def test_notice_context_is_labeled_as_title_cue_and_keeps_matching_ids(tmp_path):
+    author = Author(id="author", name="Synthetic")
+    works = [
+        Work(id=f"w{i}", title=title, author_id=author.id)
+        for i, title in enumerate(
+            [
+                "Retraction Note to: Synthetic A",
+                "Correction: Synthetic B",
+                "Retraction mechanisms in synthetic fibers",
+            ]
+        )
+    ]
+    artifacts = [source(tmp_path, w.id, f"a{i}") for i, w in enumerate(works)]
+    findings = [
+        finding(
+            "D6",
+            "text-reuse",
+            "info",
+            ["w0", f"w{i}"],
+            ["a0", f"a{i}"],
+            "Long exact token sequences recur across sections of these papers.",
+        )
+        for i in (1, 2)
+    ]
+    report = write_report(tmp_path, author, works, artifacts, findings, [])
+    row = report["reading_summary"]["categories"][0]
+    assert row["notice_title_finding_ids"] == [findings[0].id]
+    assert row["result_count"] == 2
+    rendered = (tmp_path / "report.html").read_text()
+    assert "1 of 2 text matches" in rendered
+    assert "notice-style titles" in rendered
+    assert "may explain" in rendered
+    assert not notice_title(works[2].title)
+    assert not notice_title("A study of correction methods")
+    assert notice_title("ERRATUM TO: synthetic")
+
+
+def test_priority_order_collapsed_evidence_and_every_internal_link_resolves(tmp_path):
+    author = Author(id="author", name="Synthetic <researcher>")
+    work = Work(id="w", title="Synthetic work", author_id=author.id)
+    a = source(tmp_path, work.id, "a")
+    findings = [
+        finding("D2", "synthetic-test", tier, ["w"], ["a"], f"Synthetic {tier} result.")
+        for tier in ("info", "strong", "review")
+    ]
+    report = write_report(tmp_path, author, [work], [a], findings, [])
+    brief = report["reading_summary"]
+    assert [c["tier"] for c in brief["categories"]] == ["strong", "review", "info"]
+    assert brief["priority_work_ids"] == ["w"]
+    assert len(brief["priority_finding_ids"]) == 2
+    page = html.fromstring((tmp_path / "report.html").read_text())
+    ids = page.xpath("//*[@id]/@id")
+    assert len(ids) == len(set(ids))
+    for href in page.xpath('//a[starts-with(@href,"#")]/@href'):
+        assert href[1:] in ids
+    assert not page.xpath("//details[@open]")
+    assert page.xpath('//details[@class="result"]')
+    assert len(page.xpath('//details[@class="result"]')) == 3
+    assert page.xpath("//h1/text()") == [author.name]
+    for f in findings:
+        assert f.id in page.text_content()
+    assert report["verification"] == {"accepted": 3, "rejected": []}
+
+
+def test_empty_run_and_scope_limit_are_not_presented_as_success(tmp_path):
+    author = Author(id="author", name="Synthetic", works_count=20)
+    report = write_report(
+        tmp_path,
+        author,
+        [],
+        [],
+        [],
+        [
+            Coverage(
+                work_id=author.id, source="work limit", status="skipped", detail="Explicit limit"
+            )
+        ],
+    )
+    brief = report["reading_summary"]
+    assert len(brief["missing_core_checks"]) == 4
+    assert not brief["collection_attempts"]
+    assert all(c["status"] == "not_assessed" for c in brief["detector_coverage"])
+    rendered = (tmp_path / "report.html").read_text()
+    assert rendered.index("Explicit limit") < rendered.index('id="summary"')
+    assert "could not be assessed" in rendered
+    assert "No accepted detector results are available" in rendered

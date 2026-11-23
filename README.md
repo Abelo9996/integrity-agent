@@ -20,14 +20,14 @@ uv run integrity-agent run --orcid <ORCID>
 
 The CLI shows author candidates and requires the exact OpenAlex author ID to confirm selection.
 Every report claim is reconstructed from a detector finding and checked before rendering.
-Schema 1.4 rejects ambiguous IDs and checks source/evidence files against recorded hashes;
+Schema 1.5 rejects ambiguous IDs and checks source/evidence files against recorded hashes;
 see [evidence verification](docs/EVIDENCE_VERIFICATION.md). Per-paper runtime coverage
 distinguishes completed, missing and failed checks. Equivalent verified image evidence is
 grouped for review while every raw finding/claim remains in JSON. Each run records detector
 and input hashes, dependency versions and the selected image profile.
-HTML reports open with a visual run outcome, a collection path, three evidence cards and
-a six-category coverage map. Evidence and source logs have their own views. A standalone
-`summary.svg` provides the same outcome on one page. Counts refer to tool results and
+HTML reports open with a visual run outcome and a paper review queue. A check matrix
+shows review signals, completed checks and missing inputs for each record. Publication
+actions have a direct path to their notices. Open `summary.svg` for the one-page result. Counts refer to tool results and
 linked work records, never independent problems. JSON preserves every verified finding
 and the deterministic summary with supporting IDs.
 See [how to read a report](docs/READING_REPORTS.md).

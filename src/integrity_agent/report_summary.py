@@ -6,11 +6,11 @@ events. Every result category retains all supporting finding/artifact references
 
 from __future__ import annotations
 
-import re
 from collections import Counter
 from pathlib import Path
 
 from .models import Artifact, Coverage, DetectorCoverage, Finding, Work, stable_id
+from .work_types import notice_title
 
 DETECTORS = {
     "D1": "Images",
@@ -48,18 +48,6 @@ KINDS = {
         "Compare the paper with dated registry versions; updates and analysis populations may explain differences.",
     ),
 }
-
-
-def notice_title(title: str) -> bool:
-    """A title cue only, never proof of a document's type or retraction status."""
-    return bool(
-        re.match(
-            r"^\s*(?:retraction|correction|erratum|corrigendum|withdrawal)"
-            r"(?:\s+note)?\s*(?::|\bto\b|\bof\b|$)",
-            title,
-            re.IGNORECASE,
-        )
-    )
 
 
 def reading_summary(

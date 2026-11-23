@@ -73,4 +73,37 @@ def test_grouping_preserves_claims_and_rejects_ambiguous_ids(tmp_path):
     report = write_report(tmp_path, author, works, artifacts, findings + [conflicting], [])
     assert all(findings[0].id not in g["finding_ids"] for g in report["review_groups"])
     assert len(report["verification"]["rejected"]) == 2
-    assert json.loads((tmp_path / "report.json").read_text())["schema_version"] == "1.4"
+    assert json.loads((tmp_path / "report.json").read_text())["schema_version"] == "1.5"
+
+
+def test_notice_text_is_excluded_and_research_overlap_retains_ids(tmp_path):
+    collector = Collector(Mock(), tmp_path / "data")
+    author = Author(id="author", name="Synthetic")
+    works = [
+        Work(id=f"w{i}", title=title, author_id=author.id)
+        for i, title in enumerate(
+            ["Synthetic research A", "Synthetic research B", "Retraction: Synthetic C"]
+        )
+    ]
+    body = " ".join(f"word{i}" for i in range(80))
+    document = f"<article><body><sec><title>Results</title><p>{body}</p></sec></body></article>"
+    for work in works:
+        collector.save(
+            work,
+            document.encode(),
+            "synthetic",
+            f"https://example.org/{work.id}",
+            work.id,
+            "CC0",
+            ".xml",
+        )
+    report = analyze(collector, author, works, tmp_path / "outputs", network=False)
+    overlaps = [f for f in report["findings"] if f["kind"] == "text-reuse"]
+    assert len(overlaps) == 1
+    assert overlaps[0]["work_ids"] == ["w0", "w1"]
+    assert overlaps[0]["tier"] == "info"
+    coverage = {e["work_id"]: e for e in report["detector_coverage"] if e["check"] == "text-reuse"}
+    assert {wid for wid, e in coverage.items() if e["status"] == "ran"} == {"w0", "w1"}
+    assert coverage["w0"]["input_count"] == 1
+    assert coverage["w2"]["status"] == "not_assessed"
+    assert "Notice-style" in coverage["w2"]["detail"]

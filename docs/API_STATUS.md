@@ -54,7 +54,11 @@ suppress PDF fallback. When no image/PDF is acquired, a final OpenAlex singleton
 revalidates work ID, author membership and DOI, then tries only direct `pdf_url` entries
 explicitly marked `is_oa=true`, preserving each location's license and metadata parent.
 See the current [location contract](https://help.openalex.org/data/locations/).
-This downloads the source host's OA PDF through the robots-aware transport; it does not
-use the metered OpenAlex cached-content API, scrape landing pages or guess asset names.
-Offline tests cover mismatched identifiers, closed locations, failed copies and provenance;
-no new private-cohort coverage improvement is asserted without a rerun.
+If a host PDF is unavailable, the collector can use the
+[official OpenAlex full-text archive](https://help.openalex.org/access/fulltext/) for an exact
+work marked open access. The link must match the resolved work ID on the archive host.
+The collector checks the account's available daily allowance, skips archive retrieval when
+prepaid credit is present, and caps attempts at 20 per run. Requests use the same contact,
+robots and redirect policy as other downloads. The metadata parent and source license remain
+in the manifest. A readable PDF can still have embedded images outside the target article
+or vector plots that the raster checks do not cover.

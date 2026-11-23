@@ -1,61 +1,35 @@
 # Reading a report
 
-Open `report.html` for the dashboard or `summary.svg` for the one-page visual summary.
-The overview answers: **What did this run establish, what did it check, and what is next?**
+Open `report.html` to review individual papers or `summary.svg` for the one-page overview.
+The first three counts show records with review signals, existing publication actions,
+and completed image or data checks. A zero for review signals applies only to the checks
+that completed. The coverage count gives the denominator. The publication-action card also
+reports how many retraction-linked records received image or data checks.
 
-The outcome describes the run, never the person:
+The paper queue opens to the most relevant group. Signals take priority, followed by
+publication actions, checked research records, records with no completed research-data
+checks, and documents whose titles indicate a notice. Each record appears once in the
+queue. The top counts can overlap because a record with a notice can also have been checked.
+Strong signals and records with completed image or data checks sort first within their group.
 
-- **Inconclusive · missing inputs:** no image, statistics or raw-data checks completed.
-- **Evidence needs review:** accepted detector results reached review or strong tier.
-- **Limited to the checks run:** some research-data checks ran without review-level signals.
-- **No records in scope:** no publication records were included.
+Open a paper to see its linked evidence and DOI. The six symbols on each row cover images,
+summary statistics, trial baselines, raw data, registry comparisons and text. A dot means
+at least one check ran. A half circle indicates both completed and failed checks in the same
+category. An exclamation mark opens the corresponding detector evidence. The dash indicates
+that the check did not run. Open check details for the ledger and missing inputs. Publication
+status records appear through the separate action links. The original HTML report's evidence
+library and coverage and sources views remain accessible.
 
-None of these outcomes establishes that the research is reliable. Rejected claims remain
-excluded from all counts, and a verification warning stays visible when claims are rejected.
+PDF image checks use embedded raster images. Vector plots and scanned pages can escape
+analysis. Files can contain adjacent articles. Compare the evidence to the exact figure and
+paper before drawing conclusions. Notice-titled works are excluded from new research text
+comparisons because standard notice language can create spurious matches. The title cue can
+miss atypical notices. Text similarities in research papers remain informational findings.
 
-## The visual overview
-
-The collection path shows publication records, document files and records with at least one
-completed image/statistics/raw-data check. These use different units; it is not a conversion
-rate. Publication records may include notices and versions. Document files are PDF, XML or
-text artifacts, including downloads linked through metadata and files extracted from
-archives. A downloaded document is not automatically original research content.
-
-Up to three evidence cards appear in review priority order. Every category remains available
-in the evidence library. Publication-notice cards count distinct linked work records; the
-other cards count detector results. For example, two metadata sources for one synthetic
-correction count as one work record on the card and two tool results in the library. A title
-cue can identify notice-like records but cannot prove document type or explain a match.
-Image cards show a preview of the verified detector evidence when available.
-
-The six coverage tiles count distinct records with at least one completed check in each
-category. Blue bars mean some checks ran, not that the research passed. Hatched bars and
-“Not tested” labels distinguish missing checks from negative results. Counts are labeled
-directly; color is not the only cue. Publication-status checks do not imply registry
-comparisons ran, and an image self-check does not imply cross-paper matching ran.
-
-## Evidence and coverage views
-
-Each card opens its evidence category. Open a result for the unchanged detector statement,
-source files, limitations, IDs and measurements. Equivalent image evidence appears once,
-with every raw finding ID retained. Deep links reveal the appropriate view and disclosure.
-
-Click a coverage tile for individual check counts and missing-input reasons. The coverage
-and sources view also contains the work-record index, source log and complete JSON.
-“Verified” means identifiers and source/evidence hashes passed deterministic checks;
-it does not mean an expert confirmed a scientific interpretation.
-
-The report works offline. With JavaScript disabled, all three views remain readable in
-sequence, with evidence details collapsed. The standalone SVG has no scripts or network
-dependencies; its cards link to the HTML evidence and its metadata retains summary IDs.
-
-## Data contract
-
-Schema 1.4 extends `reading_summary` with `outcome`, `collection` and `cards`. All result
-aggregates are computed after both verifier stages and preserve finding/artifact IDs.
-Coverage comes from the runtime ledger; document counts and title cues use linked artifact
-and work metadata. No model creates or upgrades a finding. Reports and visual summaries
-are presentations of existing evidence, not a new detector or independent validation study.
+Schema 1.5 adds `paper_review` to JSON. The queue consumes verified findings and the recorded
+check ledger. The detailed `reading_summary`, original detector statements, evidence IDs and
+coverage remain in JSON. A verification warning indicates any excluded claims. “Verified”
+means source and evidence references and hashes passed the report's integrity checks.
 
 Keep reports private. **Anomalies are not proof of misconduct. Findings require expert
 human review.**

@@ -6,6 +6,7 @@ import hashlib
 import json
 import platform
 import re
+from collections import Counter
 from importlib.metadata import version
 from itertools import combinations
 from pathlib import Path
@@ -22,6 +23,7 @@ from .detectors import images, process, raw, stats, text
 from .models import Baseline, Coverage, Stat, finding
 from .report import write_report
 from .repositories import jats_assets, linked_repository, trials
+from .work_types import notice_title
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
 
@@ -450,20 +452,31 @@ def analyze(
             ).hexdigest()
         findings.append(match.finding)
     if detector_plan["D6"]:
-        findings.extend(text.detect(sections))
-        for first, second in combinations(sections, 2):
-            if (
-                first["work_id"] != second["work_id"]
-                and min(len(re.findall(r"\b\w+\b", x["text"])) for x in (first, second)) >= 40
-            ):
+        notices = {w.id for w in works if notice_title(w.title)}
+        excluded_ids = {s["artifact_id"] for s in sections if s["work_id"] in notices}
+        ledger.record(
+            "D6",
+            "text-reuse",
+            [a for a in artifacts if a.artifact_id in excluded_ids],
+            status="not_assessed",
+            detail="Notice-style work title; excluded from research text comparison.",
+        )
+        eligible = list(text.eligible_sections(s for s in sections if s["work_id"] not in notices))
+        findings.extend(text.detect_prepared(eligible))
+        section_counts = Counter(s["work_id"] for s, _ in eligible)
+        source_ids = {}
+        for section, _ in eligible:
+            source_ids.setdefault(section["work_id"], set()).add(section["artifact_id"])
+        artifacts_by_id = {a.artifact_id: a for a in artifacts}
+        for work_id, count in section_counts.items():
+            other_sections = len(eligible) - count
+            if other_sections:
                 ledger.record(
                     "D6",
                     "text-reuse",
-                    [
-                        a
-                        for a in artifacts
-                        if a.artifact_id in (first["artifact_id"], second["artifact_id"])
-                    ],
+                    [artifacts_by_id[aid] for aid in source_ids[work_id]],
+                    count=count * other_sections,
+                    detail="Eligible sections compared with text from other work records.",
                 )
     findings.extend(summarize(extracted_stats))
     (output / "extracted-stats.json").write_text(

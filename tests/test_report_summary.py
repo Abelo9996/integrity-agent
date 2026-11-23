@@ -7,7 +7,7 @@ from lxml import etree, html
 
 from integrity_agent.models import Artifact, Author, Coverage, DetectorCoverage, Work, finding
 from integrity_agent.report import write_report
-from integrity_agent.report_summary import notice_title
+from integrity_agent.work_types import notice_title
 
 
 def source(root, wid, aid):
@@ -37,8 +37,8 @@ def test_summary_counts_results_not_unique_notices_or_confirmed_issues(tmp_path)
             "info",
             ["w"],
             [a.artifact_id],
-            "An identifier-linked correction notice is recorded for this paper.",
-            measurements={"type": "correction", "notice_doi": "synthetic-notice"},
+            "An identifier-linked retraction notice is recorded for this paper.",
+            measurements={"type": "retraction", "notice_doi": "synthetic-notice"},
         )
         for a in artifacts
     ]
@@ -49,12 +49,17 @@ def test_summary_counts_results_not_unique_notices_or_confirmed_issues(tmp_path)
     assert row["work_ids"] == ["w"]
     assert set(row["finding_ids"]) == {f.id for f in findings}
     assert row["artifact_ids"] == ["a", "b"]
-    assert row["status_work_ids"] == {"correction": ["w"]}
+    assert row["status_work_ids"] == {"retraction": ["w"]}
     assert brief["counts_by_tier"] == {"strong": 0, "review": 0, "info": 2}
     assert not brief["priority_finding_ids"]
     assert brief["outcome"]["state"] == "not_assessed"
     assert brief["cards"][0]["metric"] == "1"
     assert brief["cards"][0]["finding_ids"] == row["finding_ids"]
+    review = report["paper_review"]
+    assert review["publication_action_work_ids"] == ["w"]
+    assert review["retraction_work_ids"] == ["w"]
+    assert review["retraction_work_ids_with_core_checks"] == []
+    assert review["queues"]["notices"][0]["notice_ids"] == [f.id for f in findings]
     assert "not independent issues" in row["explanation"]
     assert len(report["findings"]) == len(report["claims"]) == 2
 
@@ -111,8 +116,8 @@ def test_coverage_uses_distinct_work_records_and_does_not_hide_failures(tmp_path
     assert "Summary statistics" in brief["missing_core_checks"]
     assert "Images" not in brief["missing_core_checks"]
     rendered = (tmp_path / "report.html").read_text()
-    assert "also had failed checks" in rendered
-    assert "This does not mean every check ran" in rendered
+    assert report["paper_review"]["queues"]["checked"][0]["cells"]["D1"] == "partial"
+    assert "at least one completed check" in rendered
 
 
 def test_notice_context_is_labeled_as_title_cue_and_keeps_matching_ids(tmp_path):
@@ -204,7 +209,7 @@ def test_empty_run_and_scope_limit_are_not_presented_as_success(tmp_path):
     rendered = (tmp_path / "report.html").read_text()
     assert rendered.index("Explicit limit") < rendered.index('id="summary"')
     assert "There was nothing to assess" in rendered
-    assert "No accepted detector results are available" in rendered
+    assert not any(report["paper_review"]["queues"].values())
 
 
 def test_documents_keep_metadata_parent_links_and_notice_cue(tmp_path):
@@ -224,8 +229,11 @@ def test_documents_keep_metadata_parent_links_and_notice_cue(tmp_path):
     assert collection["publication_record_count"] == 1
     assert not collection["core_checked_work_ids"]
     page = html.fromstring((tmp_path / "report.html").read_text())
-    assert len(page.xpath('//*[@id="summary"]//a[contains(@class,"coverage-tile")]')) == 6
-    assert "All linked to records with notice-style titles" in page.text_content()
+    assert len(page.xpath('//*[@id="queue-notice_documents"]//details[@class="paper-row"]')) == 1
+    assert report["paper_review"]["queues"]["notice_documents"][0]["artifact_ids"] == [
+        "metadata",
+        "document",
+    ]
 
 
 def test_completed_checks_without_results_are_not_declared_clean(tmp_path):
@@ -249,7 +257,7 @@ def test_completed_checks_without_results_are_not_declared_clean(tmp_path):
     assert "clean" not in brief["outcome"]["title"].lower()
 
 
-def test_overview_has_visual_cards_and_separate_evidence_views(tmp_path):
+def test_overview_prioritizes_unique_papers_and_links_to_evidence(tmp_path):
     author = Author(id="author", name="Synthetic")
     work = Work(id="w", title="Synthetic work", author_id=author.id)
     a = source(tmp_path, work.id, "a")
@@ -260,13 +268,14 @@ def test_overview_has_visual_cards_and_separate_evidence_views(tmp_path):
     report = write_report(tmp_path, author, [work], [a], findings, [])
     page = html.fromstring((tmp_path / "report.html").read_text())
     overview = page.get_element_by_id("summary")
-    assert len(overview.xpath('.//article[contains(@class,"evidence-card")]')) == 3
+    assert len(overview.xpath('.//details[@class="paper-row"]')) == 1
+    assert overview.xpath('.//b[@aria-label="Review signal"]')
+    assert report["paper_review"]["queues"]["signals"][0]["signal_ids"] == [f.id for f in findings]
     assert len(page.get_element_by_id("results").xpath('.//details[@class="category"]')) == 4
     assert len(overview.text_content().split()) < 350
     assert not overview.xpath(".//pre | .//table")
     assert all(f.id not in overview.text_content() for f in findings)
     assert len(report["reading_summary"]["cards"]) == 4
-    assert "first three in review priority order" in overview.text_content()
     assert page.xpath("//a[@data-view]/@data-view") == ["summary", "results", "audit"]
 
 
@@ -304,7 +313,7 @@ def test_vector_summary_preserves_verified_data_links_and_visible_cards(tmp_path
         pdf_bytes = source_svg.convert_to_pdf()
     with pymupdf.open(stream=pdf_bytes, filetype="pdf") as doc:
         text = doc[0].get_text()
-        assert "records linked to publication updates" in text
+        assert "Records with publication actions" in text
         assert "Verification gaps: 1 claims excluded" in text
         assert "Unsupported statement" not in text
         assert len(doc) == 1

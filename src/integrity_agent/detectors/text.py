@@ -8,17 +8,27 @@ from itertools import combinations
 from ..models import finding
 
 
+def eligible_sections(sections):
+    """Prepare each eligible section once per run."""
+    for section in sections:
+        tokens = re.findall(r"\b\w+\b", section["text"].lower())
+        if len(tokens) >= 40:
+            shingles = {tuple(tokens[i : i + 8]) for i in range(len(tokens) - 7)}
+            yield section, shingles
+
+
 def detect(sections):
+    return detect_prepared(list(eligible_sections(sections)))
+
+
+def detect_prepared(prepared):
     result = []
-    for a, b in combinations(sections, 2):
+    for (a, sa), (b, sb) in combinations(prepared, 2):
         if a["work_id"] == b["work_id"]:
             continue
-        ta, tb = [re.findall(r"\b\w+\b", item["text"].lower()) for item in (a, b)]
-        if min(len(ta), len(tb)) < 40:
-            continue
-        sa, sb = [{tuple(t[i : i + 8]) for i in range(len(t) - 7)} for t in (ta, tb)]
-        overlap = len(sa & sb) / min(len(sa), len(sb))
-        if overlap < 0.5 or len(sa & sb) < 25:
+        shared = len(sa & sb)
+        overlap = shared / min(len(sa), len(sb))
+        if overlap < 0.5 or shared < 25:
             continue
         important = any(re.search(r"result|figure|legend", s["section"], re.I) for s in (a, b))
         result.append(
@@ -32,7 +42,7 @@ def detect(sections):
                 parameters={"shingle_tokens": 8, "minimum_overlap": 0.5},
                 measurements={
                     "overlap": overlap,
-                    "shared_shingles": len(sa & sb),
+                    "shared_shingles": shared,
                     "context_weight": 2 if important else 1,
                     "sections": [a["section"], b["section"]],
                 },

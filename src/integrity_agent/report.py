@@ -11,6 +11,7 @@ from pathlib import Path
 from .agent import REVIEW_QUESTIONS
 from .assessment import AssessmentLedger, coverage_summary
 from .models import FOOTER, Artifact, Author, Claim, Coverage, Finding, Work
+from .paper_review import work_review
 from .report_html import render_report
 from .report_snapshot import render_snapshot
 from .report_summary import reading_summary
@@ -180,7 +181,7 @@ def write_report(
         "artifacts_collected": len(artifacts),
     }
     report = {
-        "schema_version": "1.4",
+        "schema_version": "1.5",
         "author": author.model_dump(mode="json"),
         "summary": summary,
         "reading_summary": reading_summary(works, artifacts, verified, coverage, detector_coverage),
@@ -195,6 +196,7 @@ def write_report(
         "review": review or {"questions": list(REVIEW_QUESTIONS.values())},
         "footer": FOOTER,
     }
+    report["paper_review"] = work_review(report)
     (root / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     (root / "verifier-log.json").write_text(json.dumps(rejected, indent=2), encoding="utf-8")
     (root / "report.html").write_text(render_report(report), encoding="utf-8")

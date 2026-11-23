@@ -14,6 +14,7 @@ from lxml import etree
 
 from .models import Artifact, Author, Coverage, Work, stable_id
 from .transport import AccessError, Transport
+from .work_types import notice_title
 
 XML_PARSER = etree.XMLParser(resolve_entities=False, no_network=True)
 
@@ -171,6 +172,7 @@ class Collector:
         root.mkdir(parents=True, exist_ok=True)
         self.artifacts: list[Artifact] = []
         self.coverage: list[Coverage] = []
+        self.openalex_pdf_allowance: int | None = None
 
     def save(
         self,
@@ -475,6 +477,55 @@ class Collector:
                 )
 
             self.attempt(w, "openalex-oa-copy", acquire_copy)
+        if not self.has_visual_artifact(w) and (meta.get("content_urls") or {}).get("pdf"):
+            self.attempt(w, "openalex-archive", lambda: self.openalex_archive_pdf(w, meta, parent))
+
+    def openalex_archive_pdf(self, work, metadata, parent):
+        """Use only an exact OA archive link and stay within the daily free budget."""
+        if self.has_visual_artifact(work) or notice_title(work.title):
+            return
+        ident = work.id.rsplit("/", 1)[-1]
+        url = (metadata.get("content_urls") or {}).get("pdf")
+        if (
+            not re.fullmatch(r"W\d+", ident)
+            or url != f"https://content.openalex.org/works/{ident}.pdf"
+            or (metadata.get("open_access") or {}).get("is_oa") is not True
+        ):
+            return
+        headers = openalex_headers()
+        if not headers:
+            raise AccessError("OpenAlex archive requires an API key")
+        if self.openalex_pdf_allowance is None:
+            self.openalex_pdf_allowance = 0
+            limits = self.http.json(
+                "https://api.openalex.org/rate-limit", headers=headers, ttl=0
+            ).get("rate_limit", {})
+            if limits.get("prepaid_remaining_usd") != 0:
+                raise AccessError(
+                    "OpenAlex archive requires a free allowance without prepaid balance"
+                )
+            remaining = limits.get("daily_remaining_usd")
+            cost = (limits.get("endpoint_costs_usd") or {}).get("content")
+            if isinstance(remaining, (int, float)) and isinstance(cost, (int, float)) and cost > 0:
+                self.openalex_pdf_allowance = min(20, int(max(0, remaining) / cost))
+        if self.openalex_pdf_allowance < 1:
+            raise AccessError("OpenAlex archive allowance unavailable or exhausted")
+        self.openalex_pdf_allowance -= 1
+        content = self.http.get(url, headers=headers, download=True)
+        if not content.startswith(b"%PDF-") or b"%%EOF" not in content[-4096:]:
+            raise ValueError("OpenAlex archive did not return a complete PDF")
+        self.save(
+            work,
+            content,
+            "openalex-archive",
+            url,
+            work.id,
+            (metadata.get("best_oa_location") or {}).get("license")
+            or "OA access; reuse license unspecified",
+            ".pdf",
+            parent=parent,
+            relation="exact OpenAlex work archive link",
+        )
 
     def crossref(self, w):
         if w.doi:

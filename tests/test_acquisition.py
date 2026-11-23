@@ -441,3 +441,42 @@ def test_partial_first_page_requires_key(monkeypatch):
     }
     with pytest.raises(AccessError, match="partial lists"):
         works(h, Author(id="A1", name="Synthetic"))
+
+
+@pytest.mark.parametrize("prepaid, successful", [(0, True), (1, False)])
+def test_openalex_archive_is_exact_and_free(tmp_path, monkeypatch, prepaid, successful):
+    monkeypatch.setenv("OPENALEX_API_KEY", "synthetic-key")
+    http = Mock()
+    url = "https://content.openalex.org/works/W1.pdf"
+    metadata = {
+        "id": "https://openalex.org/W1",
+        "authorships": [{"author": {"id": "https://openalex.org/A1"}}],
+        "open_access": {"is_oa": True},
+        "content_urls": {"pdf": url},
+        "best_oa_location": {"license": "cc-by"},
+    }
+    http.json.return_value = {
+        "rate_limit": {
+            "prepaid_remaining_usd": prepaid,
+            "daily_remaining_usd": 0.01,
+            "endpoint_costs_usd": {"content": 0.01},
+        }
+    }
+    http.get.side_effect = [json.dumps(metadata).encode(), b"%PDF-synthetic\n%%EOF"]
+    c = Collector(http, tmp_path)
+    work = Work(id="W1", title="Synthetic", author_id="A1")
+    c.openalex_pdf(work)
+    calls = [call for call in http.get.call_args_list if call.args == (url,)]
+    assert bool(calls) is successful
+    if successful:
+        assert calls[0].kwargs == {
+            "headers": {"Authorization": "Bearer synthetic-key"},
+            "download": True,
+        }
+        assert c.artifacts[-1].source == "openalex-archive"
+        assert c.artifacts[-1].parent_artifact_id == c.artifacts[0].artifact_id
+        assert c.artifacts[-1].url == url
+        assert c.artifacts[-1].license == "cc-by"
+        assert c.openalex_pdf_allowance == 0
+    else:
+        assert c.coverage[-1].status == "failed"

@@ -208,7 +208,7 @@ def test_empty_run_and_scope_limit_are_not_presented_as_success(tmp_path):
     assert brief["outcome"]["state"] == "no_records"
     rendered = (tmp_path / "report.html").read_text()
     assert rendered.index("Explicit limit") < rendered.index('id="summary"')
-    assert "There was nothing to assess" in rendered
+    assert "No research files had a completed check" in rendered
     assert not any(report["paper_review"]["queues"].values())
 
 
@@ -317,3 +317,103 @@ def test_vector_summary_preserves_verified_data_links_and_visible_cards(tmp_path
         assert "Verification gaps: 1 claims excluded" in text
         assert "Unsupported statement" not in text
         assert len(doc) == 1
+
+
+def test_file_view_links_exact_inputs_and_notice_without_flagging_parent(tmp_path):
+    from urllib.parse import unquote
+
+    author = Author(id="author", name="Synthetic")
+    paper = Work(id="w", title="Synthetic paper", author_id=author.id, doi="10.0000/paper")
+    notice = Work(
+        id="n", title="Retraction: Synthetic paper", author_id=author.id, doi="10.0000/notice"
+    )
+    data = tmp_path / "data"
+    data.mkdir()
+    output = tmp_path / "outputs"
+    pdf = source(data, "w", "paper")
+    image = source(data, "w", "figure")
+    notice_pdf = source(data, "n", "notice")
+    for artifact, name in [
+        (pdf, "original #1.pdf"),
+        (image, "figure.png"),
+        (notice_pdf, "publisher-notice.pdf"),
+    ]:
+        path = data / name
+        path.write_bytes(b"synthetic source")
+        artifact.path = str(path)
+    image.parent_artifact_id = pdf.artifact_id
+    image.relation = "native PDF embedded image embedded-4.png"
+    metadata = source(data, "w", "metadata")
+    unexamined = source(data, "w", "unexamined")
+    checked = DetectorCoverage(
+        work_id="w",
+        detector="D1",
+        check="copy-move",
+        status="ran",
+        input_count=1,
+        artifact_ids=[image.artifact_id],
+        detail="Synthetic image check",
+    )
+    invalid_event = checked.model_copy(
+        update={"work_id": "n", "artifact_ids": [unexamined.artifact_id]}
+    )
+    process = finding(
+        "D5",
+        "publication-update",
+        "info",
+        ["w"],
+        ["metadata"],
+        "Synthetic retraction recorded.",
+        measurements={"type": "retraction", "notice_doi": notice.doi},
+    )
+    image_signal = finding(
+        "D1",
+        "copy-move",
+        "review",
+        ["w"],
+        ["figure"],
+        "Synthetic figure warrants review.",
+        evidence_files=["evidence/synthetic.png"],
+        evidence_sha256={
+            "evidence/synthetic.png": hashlib.sha256(b"synthetic overlay").hexdigest()
+        },
+    )
+    evidence = output / "evidence"
+    evidence.mkdir(parents=True)
+    (evidence / "synthetic.png").write_bytes(b"synthetic overlay")
+    report = write_report(
+        output,
+        author,
+        [paper, notice],
+        [pdf, image, notice_pdf, metadata, unexamined],
+        [process, image_signal],
+        [],
+        detector_coverage=[checked, invalid_event],
+    )
+    assert report["file_review"]["flagged_files"] == [
+        {"artifact_id": "figure", "finding_ids": [image_signal.id]},
+    ]
+    assert report["file_review"]["checked_files"] == [
+        {
+            "file_id": "paper",
+            "input_ids": ["figure"],
+            "detectors": ["D1"],
+            "flagged_input_ids": ["figure"],
+        },
+    ]
+    page = html.fromstring((output / "report.html").read_bytes())
+    flagged = page.get_element_by_id("files-flagged")
+    assert flagged.xpath(".//img/@src") == ["evidence/synthetic.png"]
+    assert "../data/figure.png" in flagged.xpath(".//a/@href")
+    assert "original #1.pdf" not in flagged.text_content()
+    checked_section = page.get_element_by_id("files-checked")
+    file_link = checked_section.xpath(".//a/@href")[0]
+    assert (output / unquote(file_link)).resolve() == data / "original #1.pdf"
+    assert "1 embedded image checked" in checked_section.text_content()
+    assert "unexamined" not in checked_section.text_content()
+    notice_links = page.get_element_by_id("files-notices").xpath(".//a/@href")
+    assert {
+        "https://doi.org/10.0000/paper",
+        "https://doi.org/10.0000/notice",
+        "../data/publisher-notice.pdf",
+    } <= set(notice_links)

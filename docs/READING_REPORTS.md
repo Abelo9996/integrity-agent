@@ -1,11 +1,17 @@
 # Reading a report
 
-Open `report.html` to review individual papers or `summary.svg` for the one-page overview.
-The first three counts show records with review signals, existing publication actions,
-and completed image or data checks. A zero for review signals applies only to the checks
-that completed. The coverage count gives the denominator. The publication-action card also
-reports how many retraction-linked records received image or data checks.
+Open `report.html` for the file results or `summary.svg` for the one-page overview.
+The top section shows the exact input files cited by review or strong detector findings,
+with overlays when available. A flagged embedded image counts as one input file. The
+PDF that supplied it is identified in the checked-source list. That list comes from
+completed runtime checks and shows which local files can be opened.
 
+Each publication action has the paper DOI, its notice DOI when available, and check
+coverage. Multiple metadata sources for the same action and notice DOI appear as one
+link in this view. The evidence library retains all accepted source records. A known
+publication action may have no image or data checks in the current run.
+
+Open the paper-by-paper matrix for per-paper details.
 The paper queue opens to the most relevant group. Signals take priority, followed by
 publication actions, checked research records, records with no completed research-data
 checks, and documents whose titles indicate a notice. Each record appears once in the
@@ -26,8 +32,8 @@ paper before drawing conclusions. Notice-titled works are excluded from new rese
 comparisons because standard notice language can create spurious matches. The title cue can
 miss atypical notices. Text similarities in research papers remain informational findings.
 
-Schema 1.5 adds `paper_review` to JSON. The queue consumes verified findings and the recorded
-check ledger. The detailed `reading_summary`, original detector statements, evidence IDs and
+Schema 1.6 adds `file_review` to JSON, with exact flagged input IDs, supporting finding IDs,
+and checked source groups. It retains `paper_review` and the runtime ledger. The detailed `reading_summary`, original detector statements, evidence IDs and
 coverage remain in JSON. A verification warning indicates any excluded claims. “Verified”
 means source and evidence references and hashes passed the report's integrity checks.
 

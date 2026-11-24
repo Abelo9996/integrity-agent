@@ -15,6 +15,7 @@ from .paper_review import work_review
 from .report_html import render_report
 from .report_snapshot import render_snapshot
 from .report_summary import reading_summary
+from .review_files import file_review
 from .review_groups import review_groups
 
 
@@ -181,7 +182,7 @@ def write_report(
         "artifacts_collected": len(artifacts),
     }
     report = {
-        "schema_version": "1.5",
+        "schema_version": "1.6",
         "author": author.model_dump(mode="json"),
         "summary": summary,
         "reading_summary": reading_summary(works, artifacts, verified, coverage, detector_coverage),
@@ -197,8 +198,9 @@ def write_report(
         "footer": FOOTER,
     }
     report["paper_review"] = work_review(report)
+    report["file_review"] = file_review(report)
     (root / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     (root / "verifier-log.json").write_text(json.dumps(rejected, indent=2), encoding="utf-8")
-    (root / "report.html").write_text(render_report(report), encoding="utf-8")
+    (root / "report.html").write_text(render_report(report, root), encoding="utf-8")
     (root / "summary.svg").write_text(render_snapshot(report), encoding="utf-8")
     return report

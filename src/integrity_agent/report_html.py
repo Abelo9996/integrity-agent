@@ -5,19 +5,17 @@ from __future__ import annotations
 import html
 import json
 from collections import Counter
+from pathlib import Path
 from urllib.parse import quote, urlsplit
 
 from .models import FOOTER, stable_id
 from .paper_review import CHECK_LABELS, QUEUES
+from .report_file_view import finding_anchor, render_file_review
 from .report_summary import TIERS
 
 
 def esc(value) -> str:
     return html.escape(str(value), quote=True)
-
-
-def finding_anchor(fid: str) -> str:
-    return stable_id("result", fid)
 
 
 def _finding(group, known_findings, known_works, known_artifacts):
@@ -93,7 +91,7 @@ CELL_LABELS = {
 }
 
 
-def _dashboard(report):
+def _dashboard(report, root):
     review = report["paper_review"]
     works = {w["id"]: w for w in report["works"]}
     findings = {f["id"]: f for f in report["findings"]}
@@ -101,24 +99,10 @@ def _dashboard(report):
     check_events: dict[str, list[dict]] = {}
     for event in report["detector_coverage"]:
         check_events.setdefault(event["work_id"], []).append(event)
-    signal_count = len(review["signal_work_ids"])
-    tested = len(review["core_checked_work_ids"])
-    actions = len(review["publication_action_work_ids"])
-    retracted = len(review["retraction_work_ids"])
-    retracted_tested = len(review["retraction_work_ids_with_core_checks"])
-    action_label = (
-        f"{retracted} linked to retractions · {retracted_tested} had image or data checks"
-        if retracted
-        else ""
-    )
     parts = [
-        '<section><div class="view overview" id="summary"><div class="queue-outcome">',
-        f"<h2>{esc(review['title'])}</h2><p>{esc(review['explanation'])}</p></div>",
-        '<div class="queue-metrics">',
-        f'<a href="#queue-signals"><strong>{signal_count}</strong><span>Records with review signals</span></a>',
-        f'<a href="#queue-notices"><strong>{actions}</strong><span>Records with publication actions</span><small>{esc(action_label)}</small></a>',
-        f'<a href="#coverage-details"><strong>{tested}<small> / {len(works)}</small></strong><span>Records with image or data checks</span></a>',
-        '</div><div class="section-heading"><h2 id="queue">Paper review</h2><a href="#results">All detector results</a></div>',
+        '<section><div class="view overview" id="summary">',
+        render_file_review(report, root),
+        '<details id="queue"><summary>Paper-by-paper check matrix</summary><div class="detail-body">',
         '<div class="matrix-legend" aria-label="Coverage symbols">',
     ]
     for state, (symbol, label) in CELL_LABELS.items():
@@ -207,7 +191,7 @@ def _dashboard(report):
         if len(ordered) > 5:
             parts.append("</details>")
         parts.append("</div></details>")
-    return "".join(parts) + "</div></section>"
+    return "".join(parts) + "</div></details></div></section>"
 
 
 def _coverage_details(report):
@@ -247,7 +231,7 @@ def _coverage_details(report):
     return "".join(parts) + "</div>"
 
 
-def render_report(report: dict) -> str:
+def render_report(report: dict, root: Path) -> str:
     brief = report["reading_summary"]
     author = report["author"]
     works = {w["id"]: w for w in report["works"]}
@@ -262,7 +246,7 @@ def render_report(report: dict) -> str:
         + ' INTEGRITY <span>Evidence review</span></span><span class="private-label">Private report</span></div>',
         '<header><div><p class="eyebrow">Researcher test run</p>',
         f'<h1>{esc(author["name"])}</h1></div><span class="header-note"><a href="summary.svg">Open one-page visual summary ↗</a><br>Human interpretation required</span></header>',
-        '<nav aria-label="Report views"><a data-view="summary" href="#summary">Paper review</a><a data-view="results" href="#results">Evidence library</a><a data-view="audit" href="#audit">Coverage &amp; sources</a></nav>',
+        '<nav aria-label="Report views"><a data-view="summary" href="#summary">File results</a><a data-view="results" href="#results">Evidence library</a><a data-view="audit" href="#audit">Coverage &amp; sources</a></nav>',
     ]
     if rejected:
         reasons = Counter(item["reason"] for item in rejected)
@@ -286,7 +270,7 @@ def render_report(report: dict) -> str:
         parts.append(
             '<aside class="warning"><h2>Experimental image search</h2><p>This profile misses more small smooth copies in regression tests. Its sensitivity is not established.</p></aside>'
         )
-    parts.append(_dashboard(report))
+    parts.append(_dashboard(report, root))
     parts.append(
         '<section><div class="view" id="results"><div class="section-heading"><div><p class="eyebrow">Source-linked detector outputs</p><h2>Evidence library</h2></div>'
         '<a href="#summary">Back to overview</a></div>'
@@ -409,28 +393,22 @@ footer svg{width:16px;height:16px}
 .skip-link:focus{top:8px}
 a:focus-visible,summary:focus-visible{outline:3px solid #387b89;outline-offset:4px}
 .label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:650;color:var(--muted)}
-.queue-outcome {
-    padding: 24px;
-    background: #fff7eb;
-    border: 1px solid #e9d3b7;
-    border-radius: 12px;
-}
-.queue-outcome h2 { font-size: clamp(23px, 3vw, 34px); }
-.queue-outcome p { margin-top: 8px; color: #5f4b31; }
-.queue-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
-.queue-metrics a {
-    background: white;
-    padding: 16px;
-    border-radius: 10px;
-    border: 1px solid var(--line);
-    color: var(--ink);
-    text-decoration: none;
-}
-.queue-metrics a:hover { border-color: var(--teal); }
-.queue-metrics strong { display: block; font-size: clamp(28px, 4vw, 42px); line-height: 1.2; }
-.queue-metrics small { color: var(--muted); font-size: .52em; font-weight: 500; }
-.queue-metrics a > small { display: block; font-size: .75rem; margin-top: 3px; }
-.queue-metrics span { display: block; margin-top: 6px; color: var(--muted); font-size: .9rem; }
+.file-outcome { background: #fff7eb; border: 1px solid #e9d3b7; padding: 24px; border-radius: 12px; }
+.file-outcome h2 { font-size: clamp(24px, 4vw, 38px); }
+.file-outcome p { margin-top: 8px; }
+.file-shortcuts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 12px 0 24px; }
+.file-shortcuts a { padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: white; color: var(--ink); text-decoration: none; }
+.file-shortcuts a:hover { border-color: var(--teal); }
+.file-shortcuts strong { display: block; font-size: 28px; }
+.file-section { background: white; border: 1px solid var(--line); border-radius: 12px; margin: 14px 0; padding: 18px; }
+.file-section h2 { margin-bottom: 7px; }
+.file-section > p { color: var(--muted); }
+.section-count { color: var(--muted); font-weight: 500; margin-left: 6px; }
+.file-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(140px, auto); align-items: start; gap: 14px; padding: 12px 0; border-top: 1px solid var(--line); margin-top: 10px; }
+.file-row p { margin-top: 3px; color: var(--muted); font-size: .86rem; }
+.file-status { color: #5f4b31; font-size: .82rem; font-weight: 600; }
+.flag-card { padding: 16px 0; border-top: 1px solid var(--line); margin-top: 12px; }
+.flag-card small { color: var(--muted); }
 .matrix-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: .8rem; color: var(--muted); }
 .matrix-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .matrix-cell { display: inline-grid; width: 22px; height: 22px; place-items: center; border-radius: 5px; color: #41545c; background: #edf0f1; }
@@ -456,10 +434,10 @@ a:focus-visible,summary:focus-visible{outline:3px solid #387b89;outline-offset:4
     h1 { font-size: 24px; }
     nav { gap: 14px; }
     nav a { font-size: .8rem; }
-    .queue-outcome { padding: 16px; }
-    .queue-metrics { gap: 6px; }
-    .queue-metrics a { padding: 8px; }
-    .queue-metrics span { font-size: .73rem; }
+    .file-outcome { padding: 16px; }
+    .file-shortcuts { gap: 6px; font-size: .8rem; }
+    .file-shortcuts a { padding: 8px; }
+    .file-row { grid-template-columns: minmax(0, 1fr); gap: 6px; }
     .paper-row > summary { grid-template-columns: minmax(0, 1fr); }
     .paper-cells { max-width: 270px; }
     .detail-body { padding: 8px 12px 12px; }
@@ -470,7 +448,6 @@ a:focus-visible,summary:focus-visible{outline:3px solid #387b89;outline-offset:4
 
 # No external dependencies; fragments open the correct view and its evidence disclosures.
 SCRIPT = """
-document.querySelector('.paper-queue:has(.paper-row)')?.setAttribute('open','');
 function showView(view){
   document.querySelectorAll('.view').forEach(item=>{item.hidden=item!==view;});
   document.querySelectorAll('nav a[data-view]').forEach(link=>{

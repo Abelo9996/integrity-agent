@@ -10,9 +10,18 @@ import textwrap
 def render_snapshot(report: dict) -> str:
     review = report["paper_review"]
     total = len(report["works"])
+    flagged = len(report["file_review"]["flagged_files"])
+    headline = f"{flagged} detector input {'file' if flagged == 1 else 'files'} flagged"
+    retractions = len(review["retraction_work_ids"])
+    retraction_checks = len(review["retraction_work_ids_with_core_checks"])
+    explanation = (
+        f"{retraction_checks} of {retractions} retraction-linked records received image or data checks."
+        if retractions
+        else review["explanation"]
+    )
     parts = [
         '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title">',
-        f'<title id="title">{html.escape(review["title"])}</title>',
+        f'<title id="title">{html.escape(headline)}</title>',
         "<metadata>" + html.escape(json.dumps(report["reading_summary"])) + "</metadata>",
         '<rect width="1200" height="630" fill="#f5f5f2"/>',
     ]
@@ -31,19 +40,19 @@ def render_snapshot(report: dict) -> str:
     text(42, 36, "PRIVATE EVIDENCE REVIEW", 12, "#566970", 700)
     text(42, 76, report["author"]["name"], 27, weight=700, width=75)
     rect(42, 103, 1116, 114, "#fff7eb", "#e9d3b7")
-    text(62, 150, review["title"], 31, weight=700, width=68, line=34)
-    text(62, 190, review["explanation"], 16, "#5f4b31", width=116)
+    text(62, 150, headline, 31, weight=700, width=68, line=34)
+    text(62, 190, explanation, 16, "#5f4b31", width=116)
     metrics = [
-        (len(review["signal_work_ids"]), "Records with review signals", "queue-signals"),
+        (flagged, "Flagged detector input files", "files-flagged"),
         (
             len(review["publication_action_work_ids"]),
             "Records with publication actions",
-            "queue-notices",
+            "files-notices",
         ),
         (
-            f"{len(review['core_checked_work_ids'])} / {total}",
-            "Records with image or data checks",
-            "coverage-details",
+            len(report["file_review"]["checked_files"]),
+            "Source files used for checks",
+            "files-checked",
         ),
     ]
     for i, (value, label, target) in enumerate(metrics):
@@ -51,7 +60,7 @@ def render_snapshot(report: dict) -> str:
         rect(x, 232, 364, 111)
         text(x + 18, 279, value, 37, weight=700)
         text(x + 18, 315, label, 15, "#566970")
-        if target == "queue-notices" and review["retraction_work_ids"]:
+        if target == "files-notices" and review["retraction_work_ids"]:
             retracted = len(review["retraction_work_ids"])
             tested = len(review["retraction_work_ids_with_core_checks"])
             text(
@@ -87,7 +96,7 @@ def render_snapshot(report: dict) -> str:
     text(
         42,
         566,
-        "Open report.html for the per-paper check matrix and linked evidence.",
+        "Open report.html for filenames, detector evidence and publisher notices.",
         15,
         "#145d68",
         600,
